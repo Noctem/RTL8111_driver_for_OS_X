@@ -1,50 +1,30 @@
-/* RealtekRTL8111Linux-803700.cpp -- Code shared with the linux driver.
- *
- * Copyright (c) 2013 Laura Müller <laura-mueller@uni-duesseldorf.de>
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * Driver for Realtek RTL8111x PCIe ethernet controllers.
- *
- * This driver is based on Realtek's r8168 Linux driver (8.037.00).
- */
-
 /*
- ################################################################################
- #
- # r8168 is the Linux device driver released for Realtek Gigabit Ethernet
- # controllers with PCI-Express interface.
- #
- # Copyright(c) 2013 Realtek Semiconductor Corp. All rights reserved.
- #
- # This program is free software; you can redistribute it and/or modify it
- # under the terms of the GNU General Public License as published by the Free
- # Software Foundation; either version 2 of the License, or (at your option)
- # any later version.
- #
- # This program is distributed in the hope that it will be useful, but WITHOUT
- # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- # more details.
- #
- # You should have received a copy of the GNU General Public License along with
- # this program; if not, see <http://www.gnu.org/licenses/>.
- #
- # Author:
- # Realtek NIC software team <nicfae@realtek.com>
- # No. 2, Innovation Road II, Hsinchu Science Park, Hsinchu 300, Taiwan
- #
- ################################################################################
- */
+################################################################################
+#
+# r8168 is the Linux device driver released for Realtek Gigabit Ethernet
+# controllers with PCI-Express interface.
+#
+# Copyright(c) 2014 Realtek Semiconductor Corp. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, see <http://www.gnu.org/licenses/>.
+#
+# Author:
+# Realtek NIC software team <nicfae@realtek.com>
+# No. 2, Innovation Road II, Hsinchu Science Park, Hsinchu 300, Taiwan
+#
+################################################################################
+*/
 
 /************************************************************************************
  *  This product is covered by one or more of the following patents:
@@ -55,9 +35,6 @@
  * This driver is modified from r8169.c in Linux kernel 2.6.18
  */
 
-#include "RealtekRTL8111.h"
-
-#if DISABLED_CODE
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/pci.h>
@@ -98,189 +75,197 @@
 static int eee_enable = 0 ;
 module_param(eee_enable, int, S_IRUGO);
 
-#endif /* DISABLED_CODE */
-
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static const int max_interrupt_work = 20;
 
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
- The RTL chips use a 64 element hash table based on the Ethernet CRC. */
+   The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 static const int multicast_filter_limit = 32;
 
 #define _R(NAME,MAC,RCR,MASK, JumFrameSz) \
-{ .name = NAME, .mcfg = MAC, .RCR_Cfg = RCR, .RxConfigMask = MASK, .jumbo_frame_sz = JumFrameSz }
+    { .name = NAME, .mcfg = MAC, .RCR_Cfg = RCR, .RxConfigMask = MASK, .jumbo_frame_sz = JumFrameSz }
 
-const struct RTLChipInfo rtl_chip_info[] = {
+static const struct {
+    const char *name;
+    u8 mcfg;
+    u32 RCR_Cfg;
+    u32 RxConfigMask;   /* Clears the bits supported by this chip */
+    u32 jumbo_frame_sz;
+} rtl_chip_info[] = {
     _R("RTL8168B/8111B",
-       CFG_METHOD_1,
-       (Reserved2_data << Reserved2_shift) | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_4k),
-    
+    CFG_METHOD_1,
+    (Reserved2_data << Reserved2_shift) | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_4k),
+
     _R("RTL8168B/8111B",
-       CFG_METHOD_2,
-       (Reserved2_data << Reserved2_shift) | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_4k),
-    
+    CFG_METHOD_2,
+    (Reserved2_data << Reserved2_shift) | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_4k),
+
     _R("RTL8168B/8111B",
-       CFG_METHOD_3,
-       (Reserved2_data << Reserved2_shift) | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_4k),
-    
+    CFG_METHOD_3,
+    (Reserved2_data << Reserved2_shift) | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_4k),
+
     _R("RTL8168C/8111C",
-       CFG_METHOD_4, RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_6k),
-    
+    CFG_METHOD_4, RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_6k),
+
     _R("RTL8168C/8111C",
-       CFG_METHOD_5,
-       RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_6k),
-    
+    CFG_METHOD_5,
+    RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_6k),
+
     _R("RTL8168C/8111C",
-       CFG_METHOD_6,
-       RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_6k),
-    
+    CFG_METHOD_6,
+    RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_6k),
+
     _R("RTL8168CP/8111CP",
-       CFG_METHOD_7,
-       RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_6k),
-    
+    CFG_METHOD_7,
+    RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_6k),
+
     _R("RTL8168CP/8111CP",
-       CFG_METHOD_8,
-       RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_6k),
-    
+    CFG_METHOD_8,
+    RxCfg_128_int_en | RxCfg_fet_multi_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_6k),
+
     _R("RTL8168D/8111D",
-       CFG_METHOD_9,
-       RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_9,
+    RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168D/8111D",
-       CFG_METHOD_10,
-       RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_10,
+    RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168DP/8111DP",
-       CFG_METHOD_11,
-       RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_11,
+    RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168DP/8111DP",
-       CFG_METHOD_12,
-       RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_12,
+    RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168DP/8111DP",
-       CFG_METHOD_13,
-       RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_13,
+    RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168E/8111E",
-       CFG_METHOD_14,
-       RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_14,
+    RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168E/8111E",
-       CFG_METHOD_15,
-       RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_15,
+    RxCfg_128_int_en | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168E-VL/8111E-VL",
-       CFG_METHOD_16,
-       RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e0080,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_16,
+    RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e0080,
+    Jumbo_Frame_9k),
+
     _R("RTL8168E-VL/8111E-VL",
-       CFG_METHOD_17,
-       RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_17,
+    RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168F/8111F",
-       CFG_METHOD_18,
-       RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_18,
+    RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168F/8111F",
-       CFG_METHOD_19,
-       RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_19,
+    RxEarly_off_V1 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8411",
-       CFG_METHOD_20,
-       (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_20,
+    (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168G/8111G",
-       CFG_METHOD_21,
-       RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_21,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168G/8111G",
-       CFG_METHOD_22,
-       RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_22,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168EP/8111EP",
-       CFG_METHOD_23,
-       RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_23,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168GU/8111GU",
-       CFG_METHOD_24,
-       RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_24,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168GU/8111GU",
-       CFG_METHOD_25,
-       RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_25,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("8411B",
-       CFG_METHOD_26,
-       RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_26,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("RTL8168EP/8111EP",
-       CFG_METHOD_27,
-       RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       Jumbo_Frame_9k),
-    
+    CFG_METHOD_27,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
+    _R("RTL8168EP/8111EP",
+    CFG_METHOD_28,
+    RxEarly_off_V2 | (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    Jumbo_Frame_9k),
+
     _R("Unknown",
-       CFG_METHOD_DEFAULT,
-       (RX_DMA_BURST << RxCfgDMAShift),
-       0xff7e1880,
-       RX_BUF_SIZE)
+    CFG_METHOD_DEFAULT,
+    (RX_DMA_BURST << RxCfgDMAShift),
+    0xff7e1880,
+    RX_BUF_SIZE)
 };
 #undef _R
-
-#if DISABLED_CODE
 
 #ifndef PCI_VENDOR_ID_DLINK
 #define PCI_VENDOR_ID_DLINK 0x1186
@@ -296,7 +281,7 @@ MODULE_DEVICE_TABLE(pci, rtl8168_pci_tbl);
 
 static int rx_copybreak = 200;
 static int timer_count = 0x2600;
-static int use_dac;
+
 static struct {
     u32 msg_enable;
 } debug = { -1 };
@@ -335,8 +320,9 @@ MODULE_PARM_DESC(s5wol, "Enable Shutdown Wake On Lan.");
 
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
-module_param(use_dac, int, 0);
-MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
+
+module_param(timer_count, int, 0);
+MODULE_PARM_DESC(timer_count, "Timer Interrupt Interval.");
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
 module_param_named(debug, debug.msg_enable, int, 0);
@@ -382,13 +368,7 @@ static void rtl8168_rx_desc_init(struct rtl8168_private *tp);
 static void rtl8168_hw_reset(struct net_device *dev);
 
 static void rtl8168_phy_power_up (struct net_device *dev);
-
-#endif  /* DISABLED_CODE */
-
 static void rtl8168_phy_power_down (struct net_device *dev);
-
-#if DISABLED_CODE
-
 static int rtl8168_set_speed(struct net_device *dev, u8 autoneg,  u16 speed, u8 duplex);
 
 #ifdef CONFIG_R8168_NAPI
@@ -553,15 +533,15 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 {
     if (!pci_find_capability(dev, PCI_CAP_ID_PM))
         return PCI_D0;
-    
+
     switch (state) {
-        case 0:
-            return PCI_D0;
-        case 3:
-            return PCI_D3hot;
-        default:
-            printk("They asked me for state %d\n", state);
-            //      BUG();
+    case 0:
+        return PCI_D0;
+    case 3:
+        return PCI_D3hot;
+    default:
+        printk("They asked me for state %d\n", state);
+//      BUG();
     }
     return PCI_D0;
 }
@@ -576,7 +556,7 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 unsigned long _kc_msleep_interruptible(unsigned int msecs)
 {
     unsigned long timeout = _kc_msecs_to_jiffies(msecs);
-    
+
     while (timeout && !signal_pending(current)) {
         set_current_state(TASK_INTERRUPTIBLE);
         timeout = schedule_timeout(timeout);
@@ -606,14 +586,12 @@ static inline struct mii_ioctl_data *if_mii(struct ifreq *rq) {
 }
 #endif  //LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7)
 
-#endif  /* DISABLED_CODE */
-
 static inline u16 map_phy_ocp_addr(u16 PageNum, u8 RegNum)
 {
     u16 OcpPageNum = 0;
     u8 OcpRegNum = 0;
     u16 OcpPhyAddress = 0;
-    
+
     if( PageNum == 0 ) {
         OcpPageNum = OCP_STD_PHY_BASE_PAGE + ( RegNum / 8 );
         OcpRegNum = 0x10 + ( RegNum % 8 );
@@ -621,40 +599,40 @@ static inline u16 map_phy_ocp_addr(u16 PageNum, u8 RegNum)
         OcpPageNum = PageNum;
         OcpRegNum = RegNum;
     }
-    
+
     OcpPageNum <<= 4;
-    
+
     if( OcpRegNum < 16 ) {
         OcpPhyAddress = 0;
     } else {
         OcpRegNum -= 16;
         OcpRegNum <<= 1;
-        
+
         OcpPhyAddress = OcpPageNum + OcpRegNum;
     }
-    
-    
+
+
     return OcpPhyAddress;
 }
 
-void mdio_write(struct rtl8168_private *tp,
-                u32 RegAddr,
-                u32 value)
+static void mdio_real_write(struct rtl8168_private *tp,
+                            u32 RegAddr,
+                            u32 value)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
+
     if (RegAddr == 0x1F) {
         tp->cur_page = value;
     }
-    
+
     if (tp->mcfg == CFG_METHOD_11) {
         RTL_W32(OCPDR, OCPDR_Write |
                 (RegAddr & OCPDR_Reg_Mask) << OCPDR_GPHY_Reg_shift |
                 (value & OCPDR_Data_Mask));
         RTL_W32(OCPAR, OCPAR_GPHY_Write);
         RTL_W32(EPHY_RXER_NUM, 0);
-        
+
         for (i = 0; i < 100; i++) {
             mdelay(1);
             if (!(RTL_R32(OCPAR) & OCPAR_Flag))
@@ -663,50 +641,66 @@ void mdio_write(struct rtl8168_private *tp,
     } else if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
                tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_24 ||
                tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
-               tp->mcfg == CFG_METHOD_27) {
+               tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
         u32 data32;
         u16 ocp_addr;
-        
+
         if (RegAddr == 0x1F) {
             return;
         }
         ocp_addr = map_phy_ocp_addr(tp->cur_page, RegAddr);
-        
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
         WARN_ON_ONCE(ocp_addr % 2);
 #endif
         data32 = ocp_addr/2;
         data32 <<= OCPR_Addr_Reg_shift;
         data32 |= OCPR_Write | value;
-        
+
         RTL_W32(PHYOCP, data32);
         for (i = 0; i < 100; i++) {
             udelay(1);
-            
+
             if (!(RTL_R32(PHYOCP) & OCPR_Flag))
                 break;
         }
     } else {
         if (tp->mcfg == CFG_METHOD_12 || tp->mcfg == CFG_METHOD_13)
             RTL_W32(0xD0, RTL_R32(0xD0) & ~0x00020000);
-        
+
         RTL_W32(PHYAR, PHYAR_Write |
                 (RegAddr & PHYAR_Reg_Mask) << PHYAR_Reg_shift |
                 (value & PHYAR_Data_Mask));
-        
+
         for (i = 0; i < 10; i++) {
             udelay(100);
-            
+
             /* Check if the RTL8168 has completed writing to the specified MII register */
             if (!(RTL_R32(PHYAR) & PHYAR_Flag)) {
                 udelay(20);
                 break;
             }
         }
-        
+
         if (tp->mcfg == CFG_METHOD_12 || tp->mcfg == CFG_METHOD_13)
             RTL_W32(0xD0, RTL_R32(0xD0) | 0x00020000);
     }
+}
+
+void mdio_write(struct rtl8168_private *tp,
+                u32 RegAddr,
+                u32 value)
+{
+    if (tp->rtk_enable_diag) return;
+
+    mdio_real_write(tp, RegAddr, value);
+}
+
+void mdio_prot_write(struct rtl8168_private *tp,
+                     u32 RegAddr,
+                     u32 value)
+{
+    mdio_real_write(tp, RegAddr, value);
 }
 
 u32 mdio_read(struct rtl8168_private *tp,
@@ -714,49 +708,49 @@ u32 mdio_read(struct rtl8168_private *tp,
 {
     void __iomem *ioaddr = tp->mmio_addr;
     int i, value = 0;
-    
+
     if (tp->mcfg==CFG_METHOD_11) {
         RTL_W32(OCPDR, OCPDR_Read |
                 (RegAddr & OCPDR_Reg_Mask) << OCPDR_GPHY_Reg_shift);
         RTL_W32(OCPAR, OCPAR_GPHY_Write);
         RTL_W32(EPHY_RXER_NUM, 0);
-        
+
         for (i = 0; i < 100; i++) {
             mdelay(1);
             if (!(RTL_R32(OCPAR) & OCPAR_Flag))
                 break;
         }
-        
+
         mdelay(1);
         RTL_W32(OCPAR, OCPAR_GPHY_Read);
         RTL_W32(EPHY_RXER_NUM, 0);
-        
+
         for (i = 0; i < 100; i++) {
             mdelay(1);
             if (RTL_R32(OCPAR) & OCPAR_Flag)
                 break;
         }
-        
+
         value = RTL_R32(OCPDR) & OCPDR_Data_Mask;
     } else if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
                tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_24 ||
                tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
-               tp->mcfg == CFG_METHOD_27) {
+               tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
         u32 data32;
         u16 ocp_addr;
-        
+
         ocp_addr = map_phy_ocp_addr(tp->cur_page, RegAddr);
-        
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
         WARN_ON_ONCE(ocp_addr % 2);
 #endif
         data32 = ocp_addr/2;
         data32 <<= OCPR_Addr_Reg_shift;
-        
+
         RTL_W32(PHYOCP, data32);
         for (i = 0; i < 100; i++) {
             udelay(1);
-            
+
             if (RTL_R32(PHYOCP) & OCPR_Flag)
                 break;
         }
@@ -764,13 +758,13 @@ u32 mdio_read(struct rtl8168_private *tp,
     } else {
         if (tp->mcfg == CFG_METHOD_12 || tp->mcfg == CFG_METHOD_13)
             RTL_W32(0xD0, RTL_R32(0xD0) & ~0x00020000);
-        
+
         RTL_W32(PHYAR,
                 PHYAR_Read | (RegAddr & PHYAR_Reg_Mask) << PHYAR_Reg_shift);
-        
+
         for (i = 0; i < 10; i++) {
             udelay(100);
-            
+
             /* Check if the RTL8168 has completed retrieving data from the specified MII register */
             if (RTL_R32(PHYAR) & PHYAR_Flag) {
                 value = RTL_R32(PHYAR) & PHYAR_Data_Mask;
@@ -778,11 +772,11 @@ u32 mdio_read(struct rtl8168_private *tp,
                 break;
             }
         }
-        
+
         if (tp->mcfg == CFG_METHOD_12 || tp->mcfg == CFG_METHOD_13)
             RTL_W32(0xD0, RTL_R32(0xD0) | 0x00020000);
     }
-    
+
     return value;
 }
 
@@ -790,16 +784,16 @@ void mac_ocp_write(struct rtl8168_private *tp, u16 reg_addr, u16 value)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     u32 data32;
-    
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
     WARN_ON_ONCE(reg_addr % 2);
 #endif
-    
+
     data32 = reg_addr/2;
     data32 <<= OCPR_Addr_Reg_shift;
     data32 += value;
     data32 |= OCPR_Write;
-    
+
     RTL_W32(MACOCP, data32);
 }
 
@@ -808,17 +802,17 @@ u16 mac_ocp_read(struct rtl8168_private *tp, u16 reg_addr)
     void __iomem *ioaddr = tp->mmio_addr;
     u32 data32;
     u16 data16 = 0;
-    
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
     WARN_ON_ONCE(reg_addr % 2);
 #endif
-    
+
     data32 = reg_addr/2;
     data32 <<= OCPR_Addr_Reg_shift;
-    
+
     RTL_W32(MACOCP, data32);
     data16 = (u16)RTL_R32(MACOCP);
-    
+
     return data16;
 }
 
@@ -826,20 +820,21 @@ u32 OCP_read(struct rtl8168_private *tp, u8 mask, u16 Reg)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
-    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27) {
+
+    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27 ||
+        tp->mcfg == CFG_METHOD_28) {
         RTL_W32(ERIAR, ERIAR_Read |
                 ERIAR_OOB << ERIAR_Type_shift |
                 mask << ERIAR_ByteEn_shift |
                 Reg);
-        
+
         for (i = 0; i < 10; i++) {
             udelay(100);
             /* Check if the RTL8168 has completed ERI read */
             if (RTL_R32(ERIAR) & ERIAR_Flag)
                 break;
         }
-        
+
         return RTL_R32(ERIDR);
     } else {
         RTL_W32(OCPAR, ((u32)mask&0xF)<<12 | (Reg&0xFFF));
@@ -856,14 +851,15 @@ void OCP_write(struct rtl8168_private *tp, u8 mask, u16 Reg, u32 data)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
-    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27) {
+
+    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27 ||
+        tp->mcfg == CFG_METHOD_28) {
         RTL_W32(ERIDR, data);
         RTL_W32(ERIAR, ERIAR_Write |
                 ERIAR_OOB << ERIAR_Type_shift |
                 mask << ERIAR_ByteEn_shift |
                 Reg);
-        
+
         for (i = 0; i < 10; i++) {
             udelay(100);
             /* Check if the RTL8168 has completed ERI write */
@@ -888,28 +884,29 @@ void OOB_mutex_lock(struct rtl8168_private *tp)
     u16 ocp_reg_mutex_ib;
     u16 ocp_reg_mutex_oob;
     u16 ocp_reg_mutex_prio;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-            ocp_reg_mutex_oob = 0x16;
-            ocp_reg_mutex_ib = 0x17;
-            ocp_reg_mutex_prio = 0x9C;
-            break;
-        case CFG_METHOD_13:
-            ocp_reg_mutex_oob = 0x06;
-            ocp_reg_mutex_ib = 0x07;
-            ocp_reg_mutex_prio = 0x9C;
-            break;
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
-        default:
-            ocp_reg_mutex_oob = 0x110;
-            ocp_reg_mutex_ib = 0x114;
-            ocp_reg_mutex_prio = 0x11C;
-            break;
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+        ocp_reg_mutex_oob = 0x16;
+        ocp_reg_mutex_ib = 0x17;
+        ocp_reg_mutex_prio = 0x9C;
+        break;
+    case CFG_METHOD_13:
+        ocp_reg_mutex_oob = 0x06;
+        ocp_reg_mutex_ib = 0x07;
+        ocp_reg_mutex_prio = 0x9C;
+        break;
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+    default:
+        ocp_reg_mutex_oob = 0x110;
+        ocp_reg_mutex_ib = 0x114;
+        ocp_reg_mutex_prio = 0x11C;
+        break;
     }
-    
+
     OCP_write(tp, 0x1, ocp_reg_mutex_ib, BIT_0);
     reg_16 = OCP_read(tp, 0xF, ocp_reg_mutex_oob);
     wait_cnt_0 = 0;
@@ -921,19 +918,19 @@ void OOB_mutex_lock(struct rtl8168_private *tp)
             wait_Cnt_1 = 0;
             while(reg_a0) {
                 reg_a0 = OCP_read(tp, 0xF, ocp_reg_mutex_prio);
-                
+
                 wait_Cnt_1++;
-                
+
                 if(wait_Cnt_1 > 2000)
                     break;
             };
             OCP_write(tp, 0x1, ocp_reg_mutex_ib, BIT_0);
-            
+
         }
         reg_16 = OCP_read(tp, 0xF, ocp_reg_mutex_oob);
-        
+
         wait_cnt_0++;
-        
+
         if(wait_cnt_0 > 2000)
             break;
     };
@@ -944,28 +941,29 @@ void OOB_mutex_unlock(struct rtl8168_private *tp)
     u16 ocp_reg_mutex_ib;
     u16 ocp_reg_mutex_oob;
     u16 ocp_reg_mutex_prio;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-            ocp_reg_mutex_oob = 0x16;
-            ocp_reg_mutex_ib = 0x17;
-            ocp_reg_mutex_prio = 0x9C;
-            break;
-        case CFG_METHOD_13:
-            ocp_reg_mutex_oob = 0x06;
-            ocp_reg_mutex_ib = 0x07;
-            ocp_reg_mutex_prio = 0x9C;
-            break;
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
-        default:
-            ocp_reg_mutex_oob = 0x110;
-            ocp_reg_mutex_ib = 0x114;
-            ocp_reg_mutex_prio = 0x11C;
-            break;
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+        ocp_reg_mutex_oob = 0x16;
+        ocp_reg_mutex_ib = 0x17;
+        ocp_reg_mutex_prio = 0x9C;
+        break;
+    case CFG_METHOD_13:
+        ocp_reg_mutex_oob = 0x06;
+        ocp_reg_mutex_ib = 0x07;
+        ocp_reg_mutex_prio = 0x9C;
+        break;
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+    default:
+        ocp_reg_mutex_oob = 0x110;
+        ocp_reg_mutex_ib = 0x114;
+        ocp_reg_mutex_prio = 0x11C;
+        break;
     }
-    
+
     OCP_write(tp, 0x1, ocp_reg_mutex_prio, BIT_0);
     OCP_write(tp, 0x1, ocp_reg_mutex_ib, 0x00);
 }
@@ -974,7 +972,7 @@ void OOB_notify(struct rtl8168_private *tp, u8 cmd)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
+
     RTL_W8(ERIDR, cmd);
     RTL_W32(ERIAR, 0x800010E8);
     mdelay(2);
@@ -983,25 +981,26 @@ void OOB_notify(struct rtl8168_private *tp, u8 cmd)
         if (!(RTL_R32(ERIAR) & ERIAR_Flag))
             break;
     }
-    
+
     OCP_write(tp, 0x1, 0x30, 0x00000001);
 }
 
 static int rtl8168_check_dash(struct rtl8168_private *tp)
 {
-    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27) {
+    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27 ||
+        tp->mcfg == CFG_METHOD_28) {
         if (OCP_read(tp, 0xF, 0x128) & BIT_0)
             return 1;
         else
             return 0;
     } else {
         u32 reg;
-        
+
         if (tp->mcfg == CFG_METHOD_13)
             reg = 0xb8;
         else
             reg = 0x10;
-        
+
         if (OCP_read(tp, 0xF, reg) & 0x00008000)
             return 1;
         else
@@ -1009,29 +1008,108 @@ static int rtl8168_check_dash(struct rtl8168_private *tp)
     }
 }
 
-void rtl8168_driver_start(struct rtl8168_private *tp)
+void Dash2DisableTx(struct rtl8168_private *tp)
 {
-    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27) {
+    void __iomem *ioaddr = tp->mmio_addr;
+
+    if (!tp->DASH) return;
+
+    if( HW_DASH_SUPPORT_TYPE_2( tp ) ) {
+        u16 WaitCnt;
+        u8 TmpUchar;
+
+        //Disable oob Tx
+        RTL_W8(IBCR2, RTL_R8(IBCR2) & ~( BIT_0 ));
+        WaitCnt = 0;
+
+        //wait oob tx disable
+        do {
+            TmpUchar = RTL_R8(IBISR0);
+
+            if( TmpUchar & ISRIMR_DASH_TYPE2_TX_DISABLE_IDLE ) {
+                break;
+            }
+
+            udelay( 50 );
+            WaitCnt++;
+        } while(WaitCnt < 2000);
+
+        //Clear ISRIMR_DASH_TYPE2_TX_DISABLE_IDLE
+        RTL_W8(IBISR0, RTL_R8(IBISR0) | ISRIMR_DASH_TYPE2_TX_DISABLE_IDLE);
+    }
+}
+
+void Dash2EnableTx(struct rtl8168_private *tp)
+{
+    void __iomem *ioaddr = tp->mmio_addr;
+
+    if (!tp->DASH) return;
+
+    if( HW_DASH_SUPPORT_TYPE_2( tp ) )
+        RTL_W8(IBCR2, RTL_R8(IBCR2) | BIT_0);
+}
+
+void Dash2DisableRx(struct rtl8168_private *tp)
+{
+    void __iomem *ioaddr = tp->mmio_addr;
+
+    if (!tp->DASH) return;
+
+    if( HW_DASH_SUPPORT_TYPE_2( tp ) )
+        RTL_W8(IBCR0, RTL_R8(IBCR0) & ~( BIT_0 ));
+}
+
+void Dash2EnableRx(struct rtl8168_private *tp)
+{
+    void __iomem *ioaddr = tp->mmio_addr;
+
+    if (!tp->DASH) return;
+
+    if( HW_DASH_SUPPORT_TYPE_2( tp ) )
+        RTL_W8(IBCR0, RTL_R8(IBCR0) | BIT_0);
+}
+
+static void Dash2DisableTxRx(struct net_device *dev)
+{
+    struct rtl8168_private *tp = netdev_priv(dev);
+
+    if( HW_DASH_SUPPORT_TYPE_2( tp ) ) {
+        Dash2DisableTx( tp );
+        Dash2DisableRx( tp );
+    }
+}
+
+static void rtl8168_driver_start(struct rtl8168_private *tp)
+{
+    if (!tp->DASH)
+        return;
+
+    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27 ||
+        tp->mcfg == CFG_METHOD_28) {
+        int timeout;
         u32 tmp_value;
-        
-        if (!rtl8168_check_dash(tp))
-            return;
-        
+
         OCP_write(tp, 0x1, 0x180, OOB_CMD_DRIVER_START);
         tmp_value = OCP_read(tp, 0xF, 0x30);
         tmp_value |= BIT_0;
         OCP_write(tp, 0x1, 0x30, tmp_value);
+
+        for (timeout = 0; timeout < 10; timeout++) {
+            mdelay(10);
+            if (OCP_read(tp, 0xF, 0x124) & BIT_0)
+                break;
+        }
     } else {
         int timeout;
         u32 reg;
-        
+
         OOB_notify(tp, OOB_CMD_DRIVER_START);
-        
+
         if (tp->mcfg == CFG_METHOD_13)
             reg = 0xB8;
         else
             reg = 0x10;
-        
+
         for (timeout = 0; timeout < 10; timeout++) {
             mdelay(10);
             if (OCP_read(tp, 0xF, reg) & BIT_11)
@@ -1042,27 +1120,38 @@ void rtl8168_driver_start(struct rtl8168_private *tp)
 
 static void rtl8168_driver_stop(struct rtl8168_private *tp)
 {
-    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27) {
+    if (!tp->DASH)
+        return;
+
+    if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27 ||
+        tp->mcfg == CFG_METHOD_28) {
+        struct net_device *dev = tp->dev;
+        int timeout;
         u32 tmp_value;
-        
-        if (!rtl8168_check_dash(tp))
-            return;
-        
+
+        Dash2DisableTxRx(dev);
+
         OCP_write(tp, 0x1, 0x180, OOB_CMD_DRIVER_STOP);
         tmp_value = OCP_read(tp, 0xF, 0x30);
         tmp_value |= BIT_0;
         OCP_write(tp, 0x1, 0x30, tmp_value);
+
+        for (timeout = 0; timeout < 10; timeout++) {
+            mdelay(10);
+            if (!(OCP_read(tp, 0xF, 0x124) & BIT_0))
+                break;
+        }
     } else {
         int timeout;
         u32 reg;
-        
+
         OOB_notify(tp, OOB_CMD_DRIVER_STOP);
-        
+
         if (tp->mcfg == CFG_METHOD_13)
             reg = 0xB8;
         else
             reg = 0x10;
-        
+
         for (timeout = 0; timeout < 10; timeout++) {
             mdelay(10);
             if ((OCP_read(tp, 0xF, reg) & BIT_11) == 0)
@@ -1074,20 +1163,20 @@ static void rtl8168_driver_stop(struct rtl8168_private *tp)
 void rtl8168_ephy_write(void __iomem *ioaddr, int RegAddr, int value)
 {
     int i;
-    
+
     RTL_W32(EPHYAR,
             EPHYAR_Write |
             (RegAddr & EPHYAR_Reg_Mask) << EPHYAR_Reg_shift |
             (value & EPHYAR_Data_Mask));
-    
+
     for (i = 0; i < 10; i++) {
         udelay(100);
-        
+
         /* Check if the RTL8168 has completed EPHY write */
         if (!(RTL_R32(EPHYAR) & EPHYAR_Flag))
             break;
     }
-    
+
     udelay(20);
 }
 
@@ -1095,26 +1184,26 @@ u16 rtl8168_ephy_read(void __iomem *ioaddr, int RegAddr)
 {
     int i;
     u16 value = 0xffff;
-    
+
     RTL_W32(EPHYAR,
             EPHYAR_Read | (RegAddr & EPHYAR_Reg_Mask) << EPHYAR_Reg_shift);
-    
+
     for (i = 0; i < 10; i++) {
         udelay(100);
-        
+
         /* Check if the RTL8168 has completed EPHY read */
         if (RTL_R32(EPHYAR) & EPHYAR_Flag) {
             value = (u16) (RTL_R32(EPHYAR) & EPHYAR_Data_Mask);
             break;
         }
     }
-    
+
     udelay(20);
-    
+
     return value;
 }
 
-u32
+static u32
 rtl8168_csi_other_fun_read(struct rtl8168_private *tp,
                            u8 multi_fun_sel_bit,
                            u32 addr)
@@ -1123,38 +1212,39 @@ rtl8168_csi_other_fun_read(struct rtl8168_private *tp,
     u32 cmd;
     int i;
     u32 value = 0;
-    
+
     cmd = CSIAR_Read | CSIAR_ByteEn << CSIAR_ByteEn_shift | (addr & CSIAR_Addr_Mask);
-    
-    if (tp->mcfg != CFG_METHOD_20 && tp->mcfg != CFG_METHOD_23
-        && tp->mcfg != CFG_METHOD_26 && tp->mcfg != CFG_METHOD_27) {
+
+    if (tp->mcfg != CFG_METHOD_20 && tp->mcfg != CFG_METHOD_23 &&
+        tp->mcfg != CFG_METHOD_26 && tp->mcfg != CFG_METHOD_27 &&
+        tp->mcfg != CFG_METHOD_28) {
         multi_fun_sel_bit = 0;
     }
-    
+
     if( multi_fun_sel_bit > 7 ) {
         return 0xffffffff;
     }
-    
+
     cmd |= multi_fun_sel_bit << 16;
-    
+
     RTL_W32(CSIAR, cmd);
-    
+
     for (i = 0; i < 10; i++) {
         udelay(100);
-        
+
         /* Check if the RTL8168 has completed CSI read */
         if (RTL_R32(CSIAR) & CSIAR_Flag) {
             value = (u32)RTL_R32(CSIDR);
             break;
         }
     }
-    
+
     udelay(20);
-    
+
     return value;
 }
 
-void
+static void
 rtl8168_csi_other_fun_write(struct rtl8168_private *tp,
                             u8 multi_fun_sel_bit,
                             u32 addr,
@@ -1163,30 +1253,31 @@ rtl8168_csi_other_fun_write(struct rtl8168_private *tp,
     void __iomem *ioaddr = tp->mmio_addr;
     u32 cmd;
     int i;
-    
+
     RTL_W32(CSIDR, value);
     cmd = CSIAR_Write | CSIAR_ByteEn << CSIAR_ByteEn_shift | (addr & CSIAR_Addr_Mask);
-    if (tp->mcfg != CFG_METHOD_20 && tp->mcfg != CFG_METHOD_23
-        && tp->mcfg != CFG_METHOD_26 && tp->mcfg != CFG_METHOD_27) {
+    if (tp->mcfg != CFG_METHOD_20 && tp->mcfg != CFG_METHOD_23 &&
+        tp->mcfg != CFG_METHOD_26 && tp->mcfg != CFG_METHOD_27 &&
+        tp->mcfg != CFG_METHOD_28) {
         multi_fun_sel_bit = 0;
     }
-    
+
     if( multi_fun_sel_bit > 7 ) {
         return;
     }
-    
+
     cmd |= multi_fun_sel_bit << 16;
-    
+
     RTL_W32(CSIAR, cmd);
-    
+
     for (i = 0; i < 10; i++) {
         udelay(100);
-        
+
         /* Check if the RTL8168 has completed CSI write */
         if (!(RTL_R32(CSIAR) & CSIAR_Flag))
             break;
     }
-    
+
     udelay(20);
 }
 
@@ -1195,15 +1286,15 @@ rtl8168_csi_read(struct rtl8168_private *tp,
                  u32 addr)
 {
     u8 multi_fun_sel_bit;
-    
+
     if (tp->mcfg == CFG_METHOD_20)
         multi_fun_sel_bit = 2;
     else if (tp->mcfg == CFG_METHOD_26)
         multi_fun_sel_bit = 1;
     else
         multi_fun_sel_bit = 0;
-    
-    
+
+
     return rtl8168_csi_other_fun_read(tp, multi_fun_sel_bit, addr);
 }
 
@@ -1213,30 +1304,28 @@ rtl8168_csi_write(struct rtl8168_private *tp,
                   u32 value)
 {
     u8 multi_fun_sel_bit;
-    
+
     if (tp->mcfg == CFG_METHOD_20)
         multi_fun_sel_bit = 2;
     else if (tp->mcfg == CFG_METHOD_26)
         multi_fun_sel_bit = 1;
     else
         multi_fun_sel_bit = 0;
-    
+
     rtl8168_csi_other_fun_write(tp, multi_fun_sel_bit, addr, value);
 }
-
-#if DISABLED_CODE
 
 static u8
 rtl8168_csi_fun0_read_byte(struct rtl8168_private *tp,
                            u32 addr)
 {
     u8 RetVal = 0;
-    
+
     if (tp->mcfg == CFG_METHOD_20 || tp->mcfg == CFG_METHOD_26) {
         u32 TmpUlong;
         u16 RegAlignAddr;
         u8 ShiftByte;
-        
+
         RegAlignAddr = addr & ~(0x3);
         ShiftByte = addr & (0x3);
         TmpUlong = rtl8168_csi_other_fun_read(tp, 0, addr);
@@ -1244,10 +1333,12 @@ rtl8168_csi_fun0_read_byte(struct rtl8168_private *tp,
         RetVal = (u8)TmpUlong;
     } else {
         struct pci_dev *pdev = tp->pci_dev;
-        
+
         pci_read_config_byte(pdev, addr, &RetVal);
     }
-    
+
+    udelay(20);
+
     return RetVal;
 }
 
@@ -1260,7 +1351,7 @@ rtl8168_csi_fun0_write_byte(struct rtl8168_private *tp,
         u32 TmpUlong;
         u16 RegAlignAddr;
         u8 ShiftByte;
-        
+
         RegAlignAddr = addr & ~(0x3);
         ShiftByte = addr & (0x3);
         TmpUlong = rtl8168_csi_other_fun_read(tp, 0, RegAlignAddr);
@@ -1269,47 +1360,47 @@ rtl8168_csi_fun0_write_byte(struct rtl8168_private *tp,
         rtl8168_csi_other_fun_write( tp, 0, RegAlignAddr, TmpUlong );
     } else {
         struct pci_dev *pdev = tp->pci_dev;
-        
+
         pci_write_config_byte(pdev, addr, value);
     }
-}
 
-#endif /* DISABLED_CODE */
+    udelay(20);
+}
 
 u32 rtl8168_eri_read(void __iomem *ioaddr, int addr, int len, int type)
 {
     int i, val_shift, shift = 0;
     u32 value1 = 0, value2 = 0, mask;
-    
+
     if (len > 4 || len <= 0)
         return -1;
-    
+
     while (len > 0) {
         val_shift = addr % ERIAR_Addr_Align;
         addr = addr & ~0x3;
-        
+
         RTL_W32(ERIAR,
                 ERIAR_Read |
                 type << ERIAR_Type_shift |
                 ERIAR_ByteEn << ERIAR_ByteEn_shift |
                 addr);
-        
+
         for (i = 0; i < 10; i++) {
             udelay(100);
-            
+
             /* Check if the RTL8168 has completed ERI read */
             if (RTL_R32(ERIAR) & ERIAR_Flag)
                 break;
         }
-        
+
         if (len == 1)       mask = (0xFF << (val_shift * 8)) & 0xFFFFFFFF;
         else if (len == 2)  mask = (0xFFFF << (val_shift * 8)) & 0xFFFFFFFF;
         else if (len == 3)  mask = (0xFFFFFF << (val_shift * 8)) & 0xFFFFFFFF;
         else            mask = (0xFFFFFFFF << (val_shift * 8)) & 0xFFFFFFFF;
-        
+
         value1 = RTL_R32(ERIDR) & mask;
         value2 |= (value1 >> val_shift * 8) << shift * 8;
-        
+
         if (len <= 4 - val_shift) {
             len = 0;
         } else {
@@ -1318,46 +1409,48 @@ u32 rtl8168_eri_read(void __iomem *ioaddr, int addr, int len, int type)
             addr += 4;
         }
     }
-    
+
+    udelay(20);
+
     return value2;
 }
 
 int rtl8168_eri_write(void __iomem *ioaddr, int addr, int len, u32 value, int type)
 {
-    
+
     int i, val_shift, shift = 0;
     u32 value1 = 0, mask;
-    
+
     if (len > 4 || len <= 0)
         return -1;
-    
+
     while (len > 0) {
         val_shift = addr % ERIAR_Addr_Align;
         addr = addr & ~0x3;
-        
+
         if (len == 1)       mask = (0xFF << (val_shift * 8)) & 0xFFFFFFFF;
         else if (len == 2)  mask = (0xFFFF << (val_shift * 8)) & 0xFFFFFFFF;
         else if (len == 3)  mask = (0xFFFFFF << (val_shift * 8)) & 0xFFFFFFFF;
         else            mask = (0xFFFFFFFF << (val_shift * 8)) & 0xFFFFFFFF;
-        
+
         value1 = rtl8168_eri_read(ioaddr, addr, 4, type) & ~mask;
         value1 |= ((value << val_shift * 8) >> shift * 8);
-        
+
         RTL_W32(ERIDR, value1);
         RTL_W32(ERIAR,
                 ERIAR_Write |
                 type << ERIAR_Type_shift |
                 ERIAR_ByteEn << ERIAR_ByteEn_shift |
                 addr);
-        
+
         for (i = 0; i < 10; i++) {
             udelay(100);
-            
+
             /* Check if the RTL8168 has completed ERI write */
             if (!(RTL_R32(ERIAR) & ERIAR_Flag))
                 break;
         }
-        
+
         if (len <= 4 - val_shift) {
             len = 0;
         } else {
@@ -1366,7 +1459,9 @@ int rtl8168_eri_write(void __iomem *ioaddr, int addr, int len, u32 value, int ty
             addr += 4;
         }
     }
-    
+
+    udelay(20);
+
     return 0;
 }
 
@@ -1375,38 +1470,40 @@ rtl8168_enable_rxdvgate(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            RTL_W8(0xF2, RTL_R8(0xF2) | BIT_3);
-            mdelay(2);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        RTL_W8(0xF2, RTL_R8(0xF2) | BIT_3);
+        mdelay(2);
+        break;
     }
 }
 
-void
+static void
 rtl8168_disable_rxdvgate(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            RTL_W8(0xF2, RTL_R8(0xF2) & ~BIT_3);
-            mdelay(2);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        RTL_W8(0xF2, RTL_R8(0xF2) & ~BIT_3);
+        mdelay(2);
+        break;
     }
 }
 
@@ -1416,132 +1513,209 @@ rtl8168_wait_txrx_fifo_empty(struct net_device *dev)
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            for (i = 0; i < 10; i++) {
-                udelay(100);
-                if (RTL_R32(TxConfig) & BIT_11)
-                    break;
-            }
-            
-            for (i = 0; i < 10; i++) {
-                udelay(100);
-                if ((RTL_R8(MCUCmd_reg) & (Txfifo_empty | Rxfifo_empty)) == (Txfifo_empty | Rxfifo_empty))
-                    break;
-                
-            }
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        for (i = 0; i < 10; i++) {
+            udelay(100);
+            if (RTL_R32(TxConfig) & BIT_11)
+                break;
+        }
+
+        for (i = 0; i < 10; i++) {
+            udelay(100);
+            if ((RTL_R8(MCUCmd_reg) & (Txfifo_empty | Rxfifo_empty)) == (Txfifo_empty | Rxfifo_empty))
+                break;
+
+        }
+        break;
+    }
+}
+
+#ifdef ENABLE_DASH_SUPPORT
+
+inline void
+rtl8168_enable_dash2_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
+{
+    if (!tp->DASH) return;
+
+    if( HW_DASH_SUPPORT_TYPE_2( tp ) )
+        RTL_W8(IBIMR0, ( ISRIMR_DASH_TYPE2_ROK | ISRIMR_DASH_TYPE2_TOK | ISRIMR_DASH_TYPE2_TDU | ISRIMR_DASH_TYPE2_RDU | ISRIMR_DASH_TYPE2_RX_DISABLE_IDLE ));
+}
+
+static inline void
+rtl8168_disable_dash2_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
+{
+    if (!tp->DASH) return;
+
+    if( HW_DASH_SUPPORT_TYPE_2( tp ) )
+        RTL_W8(IBIMR0, 0);
+}
+#endif
+
+static inline void
+rtl8168_enable_hw_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
+{
+    RTL_W16(IntrMask, tp->intr_mask);
+
+#ifdef ENABLE_DASH_SUPPORT
+    if (tp->DASH)
+        rtl8168_enable_dash2_interrupt(tp, ioaddr);
+#endif
+}
+
+static inline void
+rtl8168_disable_hw_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
+{
+    RTL_W16(IntrMask, 0x0000);
+
+#ifdef ENABLE_DASH_SUPPORT
+    if (tp->DASH)
+        rtl8168_disable_dash2_interrupt(tp, ioaddr);
+#endif
+}
+
+
+static inline void
+rtl8168_switch_to_hw_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
+{
+    RTL_W32(TimeIntr, 0x0000);
+
+    rtl8168_enable_hw_interrupt(tp, ioaddr);
+}
+
+static inline void
+rtl8168_switch_to_timer_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
+{
+    if (tp->use_timer_interrrupt) {
+        RTL_W32(TCTR, timer_count);
+        RTL_W32(TimeIntr, timer_count);
+        RTL_W16(IntrMask, tp->timer_intr_mask);
+
+#ifdef ENABLE_DASH_SUPPORT
+        if (tp->DASH)
+            rtl8168_enable_dash2_interrupt(tp, ioaddr);
+#endif
+    } else {
+        rtl8168_switch_to_hw_interrupt(tp, ioaddr);
     }
 }
 
 static void
-rtl8168_irq_mask_and_ack(void __iomem *ioaddr)
+rtl8168_irq_mask_and_ack(struct rtl8168_private *tp, void __iomem *ioaddr)
 {
-    RTL_W16(IntrMask, 0x0000);
+    rtl8168_disable_hw_interrupt(tp, ioaddr);
     RTL_W16(IntrStatus, RTL_R16(IntrStatus));
+
+#ifdef ENABLE_DASH_SUPPORT
+    if ( tp->DASH ) {
+        if( HW_DASH_SUPPORT_TYPE_2( tp ) ) {
+            RTL_W8(IBISR0, RTL_R16(IBISR0));
+        }
+    }
+#endif
 }
 
-void
+static void
 rtl8168_nic_reset(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
+
     RTL_W32(RxConfig, (RX_DMA_BURST << RxCfgDMAShift));
-    
+
     rtl8168_enable_rxdvgate(dev);
-    
+
     rtl8168_wait_txrx_fifo_empty(dev);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_1:
-        case CFG_METHOD_2:
-        case CFG_METHOD_3:
-            mdelay(10);
-            break;
-        case CFG_METHOD_4:
-        case CFG_METHOD_5:
-        case CFG_METHOD_6:
-        case CFG_METHOD_7:
-        case CFG_METHOD_8:
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            RTL_W8(ChipCmd, StopReq | CmdRxEnb | CmdTxEnb);
-            udelay(100);
-            break;
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-            while (RTL_R8(TxPoll) & NPQ)
-                udelay(20);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            mdelay(2);
-            break;
-        default:
-            mdelay(10);
-            break;
+    case CFG_METHOD_1:
+    case CFG_METHOD_2:
+    case CFG_METHOD_3:
+        mdelay(10);
+        break;
+    case CFG_METHOD_4:
+    case CFG_METHOD_5:
+    case CFG_METHOD_6:
+    case CFG_METHOD_7:
+    case CFG_METHOD_8:
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        RTL_W8(ChipCmd, StopReq | CmdRxEnb | CmdTxEnb);
+        udelay(100);
+        break;
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+        while (RTL_R8(TxPoll) & NPQ)
+            udelay(20);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        mdelay(2);
+        break;
+    default:
+        mdelay(10);
+        break;
     }
-    
+
     /* Soft reset the chip. */
     RTL_W8(ChipCmd, CmdReset);
-    
+
     /* Check that the chip has finished the reset. */
     for (i = 100; i > 0; i--) {
         udelay(100);
         if ((RTL_R8(ChipCmd) & CmdReset) == 0)
             break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_11:
-            OOB_mutex_lock(tp);
-            OCP_write(tp, 0x3, 0x10, OCP_read(tp, 0xF, 0x010)&~0x00004000);
-            OOB_mutex_unlock(tp);
-            
-            OOB_notify(tp, OOB_CMD_RESET);
-            
-            for (i = 0; i < 10; i++) {
-                mdelay(10);
-                if (OCP_read(tp, 0xF, 0x010)&0x00004000)
-                    break;
-            }
-            
-            for (i = 0; i < 5; i++) {
-                if ( (OCP_read(tp, 0xF, 0x034) & 0xFFFF) == 0)
-                    break;
-            }
-            break;
+    case CFG_METHOD_11:
+        OOB_mutex_lock(tp);
+        OCP_write(tp, 0x3, 0x10, OCP_read(tp, 0xF, 0x010)&~0x00004000);
+        OOB_mutex_unlock(tp);
+
+        OOB_notify(tp, OOB_CMD_RESET);
+
+        for (i = 0; i < 10; i++) {
+            mdelay(10);
+            if (OCP_read(tp, 0xF, 0x010)&0x00004000)
+                break;
+        }
+
+        for (i = 0; i < 5; i++) {
+            if ( (OCP_read(tp, 0xF, 0x034) & 0xFFFF) == 0)
+                break;
+        }
+        break;
     }
 }
 
-#if DISABLED_CODE
-
-void
+static void
 rtl8168_hw_reset(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     /* Disable interrupts */
-    rtl8168_irq_mask_and_ack(ioaddr);
-    
+    rtl8168_irq_mask_and_ack(tp, ioaddr);
+
     rtl8168_nic_reset(dev);
 }
 
@@ -1558,10 +1732,10 @@ static void rtl8168_mac_loopback_test(struct rtl8168_private *tp)
     u16 type;
     u8 pattern;
     int i;
-    
-    if (rtl8168_check_dash(tp))
+
+    if (tp->DASH)
         return;
-    
+
     pattern = 0x5A;
     len = 60;
     type = htons(ETH_P_IP);
@@ -1569,19 +1743,19 @@ static void rtl8168_mac_loopback_test(struct rtl8168_private *tp)
     rxd = tp->RxDescArray;
     rx_skb = tp->Rx_skbuff[0];
     RTL_W32(TxConfig, (RTL_R32(TxConfig) & ~0x00060000) | 0x00020000);
-    
+
     do {
         skb = dev_alloc_skb(len + RTK_RX_ALIGN);
         if (unlikely(!skb))
             dev_printk(KERN_NOTICE, &tp->pci_dev->dev, "-ENOMEM;\n");
     } while (unlikely(skb == NULL));
     skb_reserve(skb, RTK_RX_ALIGN);
-    
+
     memcpy(skb_put(skb, dev->addr_len), dev->dev_addr, dev->addr_len);
     memcpy(skb_put(skb, dev->addr_len), dev->dev_addr, dev->addr_len);
     memcpy(skb_put(skb, sizeof(type)), &type, sizeof(type));
     tmpAddr = skb_put(skb, len - 14);
-    
+
     mapping = pci_map_single(tp->pci_dev, skb->data, len, PCI_DMA_TODEVICE);
     pci_dma_sync_single_for_cpu(tp->pci_dev, le64_to_cpu(mapping),
                                 len, PCI_DMA_TODEVICE);
@@ -1593,37 +1767,37 @@ static void rtl8168_mac_loopback_test(struct rtl8168_private *tp)
                                        le64_to_cpu(mapping),
                                        len, PCI_DMA_TODEVICE);
         txd->opts1 = cpu_to_le32(DescOwn | FirstFrag | LastFrag | len);
-        
+
         RTL_W32(RxConfig, RTL_R32(RxConfig)  | AcceptMyPhys);
-        
+
         smp_wmb();
         RTL_W8(TxPoll, NPQ);    /* set polling bit */
-        
+
         for (i = 0; i < 50; i++) {
             udelay(200);
             rx_cmd = le32_to_cpu(rxd->opts1);
             if ((rx_cmd & DescOwn) == 0)
                 break;
         }
-        
+
         RTL_W32(RxConfig, RTL_R32(RxConfig) & ~(AcceptErr | AcceptRunt | AcceptBroadcast | AcceptMulticast | AcceptMyPhys |  AcceptAllPhys));
-        
+
         rx_len = rx_cmd & 0x3FFF;
         rx_len -= 4;
         rxd->opts1 = cpu_to_le32(DescOwn | tp->rx_buf_sz);
-        
+
         pci_dma_sync_single_for_cpu(tp->pci_dev, le64_to_cpu(mapping), len, PCI_DMA_TODEVICE);
-        
+
         if (rx_len == len) {
             pci_dma_sync_single_for_cpu(tp->pci_dev, le64_to_cpu(rxd->addr), tp->rx_buf_sz, PCI_DMA_FROMDEVICE);
             i = memcmp(skb->data, rx_skb->data, rx_len);
             pci_dma_sync_single_for_device(tp->pci_dev, le64_to_cpu(rxd->addr), tp->rx_buf_sz, PCI_DMA_FROMDEVICE);
             if (i == 0) {
-                //              dev_printk(KERN_INFO, &tp->pci_dev->dev, "loopback test finished\n",rx_len,len);
+//              dev_printk(KERN_INFO, &tp->pci_dev->dev, "loopback test finished\n",rx_len,len);
                 break;
             }
         }
-        
+
         rtl8168_hw_reset(dev);
         rtl8168_disable_rxdvgate(dev);
         RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
@@ -1639,67 +1813,65 @@ static void rtl8168_mac_loopback_test(struct rtl8168_private *tp)
     RTL_W16(IntrStatus, 0xFFBF);
 }
 
-#endif /* DISABLED_CODE */
-
-unsigned int
+static unsigned int
 rtl8168_xmii_reset_pending(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned int retval;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     spin_lock_irqsave(&tp->phy_lock, flags);
     mdio_write(tp, 0x1f, 0x0000);
     retval = mdio_read(tp, MII_BMCR) & BMCR_RESET;
     spin_unlock_irqrestore(&tp->phy_lock, flags);
-    
+
     return retval;
 }
 
-unsigned int
+static unsigned int
 rtl8168_xmii_link_ok(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     unsigned int retval;
-    
+
     retval = (RTL_R8(PHYstatus) & LinkStatus) ? 1 : 0;
-    
+
     return retval;
 }
 
-void
+static void
 rtl8168_xmii_reset_enable(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     int i, val = 0;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     spin_lock_irqsave(&tp->phy_lock, flags);
     mdio_write(tp, 0x1f, 0x0000);
     mdio_write(tp, MII_BMCR, mdio_read(tp, MII_BMCR) | BMCR_RESET);
     spin_unlock_irqrestore(&tp->phy_lock, flags);
-    
+
     for (i = 0; i < 2500; i++) {
         spin_lock_irqsave(&tp->phy_lock, flags);
         val = mdio_read(tp, MII_BMSR) & BMCR_RESET;
         spin_unlock_irqrestore(&tp->phy_lock, flags);
-        
+
         if (!val)
             return;
-        
+
         mdelay(1);
     }
 }
 
-void
+static void
 rtl8168dp_10mbps_gphy_para(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     u8 status = RTL_R8(PHYstatus);
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     spin_lock_irqsave(&tp->phy_lock, flags);
     if ((status & LinkStatus) && (status & _10bps)) {
         mdio_write(tp, 0x1f, 0x0000);
@@ -1711,8 +1883,6 @@ rtl8168dp_10mbps_gphy_para(struct net_device *dev)
     spin_unlock_irqrestore(&tp->phy_lock, flags);
 }
 
-#if DISABLED_CODE
-
 void rtl8168_init_ring_indexes(struct rtl8168_private *tp)
 {
     tp->dirty_tx = 0;
@@ -1721,35 +1891,52 @@ void rtl8168_init_ring_indexes(struct rtl8168_private *tp)
     tp->cur_rx = 0;
 }
 
-#endif /* DISABLED_CODE */
-
-void
+static void
 rtl8168_issue_offset_99_event(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     u32 csi_tmp;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_27:
-            if (tp->mcfg == CFG_METHOD_24 || tp->mcfg == CFG_METHOD_25 ||
-                tp->mcfg == CFG_METHOD_27) {
-                rtl8168_eri_write(ioaddr, 0x3FC, 4, 0x00000000, ERIAR_ExGMAC);
-            } else {
-                rtl8168_eri_write(ioaddr, 0x3FC, 4, 0x083C083C, ERIAR_ExGMAC);
-            }
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x3F8, 1, ERIAR_ExGMAC);
-            csi_tmp |= BIT_0;
-            rtl8168_eri_write(ioaddr, 0x3F8, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (tp->mcfg == CFG_METHOD_24 || tp->mcfg == CFG_METHOD_25 ||
+            tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
+            rtl8168_eri_write(ioaddr, 0x3FC, 4, 0x00000000, ERIAR_ExGMAC);
+        } else {
+            rtl8168_eri_write(ioaddr, 0x3FC, 4, 0x083C083C, ERIAR_ExGMAC);
+        }
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x3F8, 1, ERIAR_ExGMAC);
+        csi_tmp |= BIT_0;
+        rtl8168_eri_write(ioaddr, 0x3F8, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
     }
 }
 
-#if DISABLED_CODE
+#ifdef ENABLE_DASH_SUPPORT
+static void
+NICChkTypeEnableDashInterrupt(struct rtl8168_private *tp)
+{
+    void __iomem *ioaddr = tp->mmio_addr;
+
+    if (tp->DASH) {
+        //
+        // even disconnected, enable 3 dash interrupt mask bits for in-band/out-band communication
+        //
+        if( HW_DASH_SUPPORT_TYPE_2( tp ) ) {
+            rtl8168_enable_dash2_interrupt(tp, ioaddr);
+            RTL_W16(IntrMask, (ISRIMR_DASH_INTR_EN | ISRIMR_DASH_INTR_CMAC_RESET));
+        } else {
+            RTL_W16(IntrMask, (ISRIMR_DP_DASH_OK | ISRIMR_DP_HOST_OK | ISRIMR_DP_REQSYS_OK));
+        }
+    }
+}
+#endif
 
 static void
 rtl8168_check_link_status(struct net_device *dev)
@@ -1758,12 +1945,12 @@ rtl8168_check_link_status(struct net_device *dev)
     void __iomem *ioaddr = tp->mmio_addr;
     int link_status_on;
     unsigned long flags;
-    
+
     link_status_on = tp->link_ok(dev);
-    
+
     if (tp->mcfg == CFG_METHOD_11)
         rtl8168dp_10mbps_gphy_para(dev);
-    
+
     if (netif_carrier_ok(dev) != link_status_on) {
         if (link_status_on) {
             if (tp->mcfg == CFG_METHOD_18 || tp->mcfg == CFG_METHOD_19 || tp->mcfg == CFG_METHOD_20) {
@@ -1799,7 +1986,7 @@ rtl8168_check_link_status(struct net_device *dev)
                     spin_unlock_irqrestore(&tp->phy_lock, flags);
                     if (RTL_R8(PHYstatus) & (_10bps | _100bps))
                         RTL_W32(TxConfig, (RTL_R32(TxConfig) & ~BIT_19) | BIT_25);
-                    
+
                 } else {
                     spin_lock_irqsave(&tp->phy_lock, flags);
                     mdio_write(tp, 0x1F, 0x0006);
@@ -1812,14 +1999,16 @@ rtl8168_check_link_status(struct net_device *dev)
             } else if ((tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
                         tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_24 ||
                         tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
-                        tp->mcfg == CFG_METHOD_27) && netif_running(dev)) {
+                        tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) &&
+                       netif_running(dev)) {
                 if (RTL_R8(PHYstatus)&FullDup)
                     RTL_W32(TxConfig, (RTL_R32(TxConfig) | (BIT_24 | BIT_25)) & ~BIT_19);
                 else
                     RTL_W32(TxConfig, (RTL_R32(TxConfig) | BIT_25) & ~(BIT_19 | BIT_24));
             }
-            
-            if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 || tp->mcfg == CFG_METHOD_27) {
+
+            if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
+                tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
                 /*half mode*/
                 if (!(RTL_R8(PHYstatus)&FullDup)) {
                     spin_lock_irqsave(&tp->phy_lock, flags);
@@ -1828,57 +2017,65 @@ rtl8168_check_link_status(struct net_device *dev)
                     spin_unlock_irqrestore(&tp->phy_lock, flags);
                 }
             }
-            
+
             rtl8168_hw_start(dev);
-            
+
             netif_carrier_on(dev);
-            
+
             if (netif_msg_ifup(tp))
                 printk(KERN_INFO PFX "%s: link up\n", dev->name);
         } else {
             if (netif_msg_ifdown(tp))
                 printk(KERN_INFO PFX "%s: link down\n", dev->name);
             netif_carrier_off(dev);
-            
+
             netif_stop_queue(dev);
-            
+
             rtl8168_hw_reset(dev);
-            
+
             rtl8168_tx_clear(tp);
-            
+
             rtl8168_init_ring_indexes(tp);
-            
+
             rtl8168_set_speed(dev, tp->autoneg, tp->speed, tp->duplex);
-            
+
             switch (tp->mcfg) {
-                case CFG_METHOD_21:
-                case CFG_METHOD_22:
-                case CFG_METHOD_23:
-                case CFG_METHOD_24:
-                case CFG_METHOD_25:
-                case CFG_METHOD_27:
-                    if (tp->org_pci_offset_99 & BIT_2)
-                        tp->issue_offset_99_event = TRUE;
-                    break;
-            }
-        }
-    }
-    
-    if (!link_status_on) {
-        switch (tp->mcfg) {
             case CFG_METHOD_21:
             case CFG_METHOD_22:
             case CFG_METHOD_23:
             case CFG_METHOD_24:
             case CFG_METHOD_25:
             case CFG_METHOD_27:
-                if (tp->issue_offset_99_event) {
-                    if (!(RTL_R8(PHYstatus) & PowerSaveStatus)) {
-                        tp->issue_offset_99_event = FALSE;
-                        rtl8168_issue_offset_99_event(tp);
-                    }
-                }
+            case CFG_METHOD_28:
+                if (tp->org_pci_offset_99 & BIT_2)
+                    tp->issue_offset_99_event = TRUE;
                 break;
+            }
+
+#ifdef ENABLE_DASH_SUPPORT
+            if (tp->DASH) {
+                NICChkTypeEnableDashInterrupt(tp);
+            }
+#endif
+        }
+    }
+
+    if (!link_status_on) {
+        switch (tp->mcfg) {
+        case CFG_METHOD_21:
+        case CFG_METHOD_22:
+        case CFG_METHOD_23:
+        case CFG_METHOD_24:
+        case CFG_METHOD_25:
+        case CFG_METHOD_27:
+        case CFG_METHOD_28:
+            if (tp->issue_offset_99_event) {
+                if (!(RTL_R8(PHYstatus) & PowerSaveStatus)) {
+                    tp->issue_offset_99_event = FALSE;
+                    rtl8168_issue_offset_99_event(tp);
+                }
+            }
+            break;
         }
     }
 }
@@ -1891,15 +2088,13 @@ rtl8168_link_option(int idx,
 {
     if ((*spd != SPEED_1000) && (*spd != SPEED_100) && (*spd != SPEED_10))
         *spd = SPEED_1000;
-    
+
     if ((*dup != DUPLEX_FULL) && (*dup != DUPLEX_HALF))
         *dup = DUPLEX_FULL;
-    
+
     if ((*aut != AUTONEG_ENABLE) && (*aut != AUTONEG_DISABLE))
         *aut = AUTONEG_ENABLE;
 }
-
-#endif /* DISABLED_CODE */
 
 static void
 rtl8168_wait_ll_share_fifo_ready(struct net_device *dev)
@@ -1907,7 +2102,7 @@ rtl8168_wait_ll_share_fifo_ready(struct net_device *dev)
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
+
     for (i = 0; i < 10; i++) {
         udelay(100);
         if (RTL_R16(0xD2) & BIT_9)
@@ -1915,162 +2110,165 @@ rtl8168_wait_ll_share_fifo_ready(struct net_device *dev)
     }
 }
 
-#if DISABLED_CODE
-
 static void
 rtl8168_disable_pci_offset_99(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     u32 csi_tmp;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x3F2, 2, ERIAR_ExGMAC);
-            csi_tmp &= ~(BIT_0 | BIT_1);
-            rtl8168_eri_write(ioaddr, 0x3F2, 2, csi_tmp, ERIAR_ExGMAC);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x3F2, 2, ERIAR_ExGMAC);
+        csi_tmp &= ~(BIT_0 | BIT_1);
+        rtl8168_eri_write(ioaddr, 0x3F2, 2, csi_tmp, ERIAR_ExGMAC);
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_26:
-            rtl8168_csi_fun0_write_byte(tp, 0x99, 0x00);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_26:
+        rtl8168_csi_fun0_write_byte(tp, 0x99, 0x00);
+        break;
     }
 }
-
-#endif  /* DISABLED_CODE */
 
 static void
 rtl8168_enable_pci_offset_99(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     u32 csi_tmp;
-    
-    switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x3F2, 2, ERIAR_ExGMAC);
-            csi_tmp &= ~(BIT_0 | BIT_1);
-            if (!(tp->org_pci_offset_99 & (BIT_5 | BIT_6)))
-                csi_tmp |= BIT_1;
-            if (!(tp->org_pci_offset_99 & BIT_2))
-                csi_tmp |= BIT_0;
-            rtl8168_eri_write(ioaddr, 0x3F2, 2, csi_tmp, ERIAR_ExGMAC);
-            break;
-    }
-}
 
-void rtl8168_init_pci_offset_99(struct rtl8168_private *tp)
-{
-    void __iomem *ioaddr = tp->mmio_addr;
-    u32 csi_tmp;
-    
     switch (tp->mcfg) {
-        case CFG_METHOD_26:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x5C2, 1, ERIAR_ExGMAC);
-            csi_tmp &= ~BIT_1;
-            rtl8168_eri_write(ioaddr, 0x5C2, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
-    }
-    
-    switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x3F2, 2, ERIAR_ExGMAC);
-            csi_tmp &= ~( BIT_8 | BIT_9  | BIT_10 | BIT_11  | BIT_12  | BIT_13  | BIT_14 | BIT_15 );
-            csi_tmp |= ( BIT_9 | BIT_10 | BIT_13  | BIT_14 | BIT_15 );
-            rtl8168_eri_write(ioaddr, 0x3F2, 2, csi_tmp, ERIAR_ExGMAC);
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x3F5, 1, ERIAR_ExGMAC);
-            csi_tmp |= BIT_6 | BIT_7;
-            rtl8168_eri_write(ioaddr, 0x3F5, 1, csi_tmp, ERIAR_ExGMAC);
-            mac_ocp_write(tp, 0xE02C, 0x1880);
-            mac_ocp_write(tp, 0xE02E, 0x4880);
-            break;
-    }
-    
-    switch (tp->mcfg) {
-        case CFG_METHOD_26:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x5C8, 1, ERIAR_ExGMAC);
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x3F2, 2, ERIAR_ExGMAC);
+        csi_tmp &= ~(BIT_0 | BIT_1);
+        if (!(tp->org_pci_offset_99 & (BIT_5 | BIT_6)))
+            csi_tmp |= BIT_1;
+        if (!(tp->org_pci_offset_99 & BIT_2))
             csi_tmp |= BIT_0;
-            rtl8168_eri_write(ioaddr, 0x5C8, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
-    }
-    
-    switch (tp->mcfg) {
-        case CFG_METHOD_23:
-            rtl8168_eri_write(ioaddr, 0x2E8, 2, 0x883C, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2EA, 2, 0x8C12, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2EC, 2, 0x9003, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2E2, 2, 0x883C, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2E4, 2, 0x8C12, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2E6, 2, 0x9003, ERIAR_ExGMAC);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            rtl8168_eri_write(ioaddr, 0x2E8, 2, 0x9003, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2EA, 2, 0x9003, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2EC, 2, 0x9003, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2E2, 2, 0x883C, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2E4, 2, 0x8C12, ERIAR_ExGMAC);
-            rtl8168_eri_write(ioaddr, 0x2E6, 2, 0x9003, ERIAR_ExGMAC);
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x3FA, 2, ERIAR_ExGMAC);
-            csi_tmp |= BIT_14;
-            rtl8168_eri_write(ioaddr, 0x3FA, 2, csi_tmp, ERIAR_ExGMAC);
-            
-            break;
-    }
-    
-    rtl8168_enable_pci_offset_99(tp);
-    
-    switch (tp->mcfg) {
-        case CFG_METHOD_26:
-            RTL_W8(0xB6, RTL_R8(0xB6) | BIT_0);
-            break;
+        rtl8168_eri_write(ioaddr, 0x3F2, 2, csi_tmp, ERIAR_ExGMAC);
+        break;
     }
 }
 
-void rtl8168_disable_pci_offset_180(struct rtl8168_private *tp)
+static void
+rtl8168_init_pci_offset_99(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     u32 csi_tmp;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x1E2, 1, ERIAR_ExGMAC);
-            csi_tmp &= ~BIT_2;
-            rtl8168_eri_write(ioaddr, 0x1E2, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
+    case CFG_METHOD_26:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x5C2, 1, ERIAR_ExGMAC);
+        csi_tmp &= ~BIT_1;
+        rtl8168_eri_write(ioaddr, 0x5C2, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_26:
-            rtl8168_eri_write(ioaddr, 0x1E9, 1, 0x0A, ERIAR_ExGMAC);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x3F2, 2, ERIAR_ExGMAC);
+        csi_tmp &= ~( BIT_8 | BIT_9  | BIT_10 | BIT_11  | BIT_12  | BIT_13  | BIT_14 | BIT_15 );
+        csi_tmp |= ( BIT_9 | BIT_10 | BIT_13  | BIT_14 | BIT_15 );
+        rtl8168_eri_write(ioaddr, 0x3F2, 2, csi_tmp, ERIAR_ExGMAC);
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x3F5, 1, ERIAR_ExGMAC);
+        csi_tmp |= BIT_6 | BIT_7;
+        rtl8168_eri_write(ioaddr, 0x3F5, 1, csi_tmp, ERIAR_ExGMAC);
+        mac_ocp_write(tp, 0xE02C, 0x1880);
+        mac_ocp_write(tp, 0xE02E, 0x4880);
+        break;
+    }
+
+    switch (tp->mcfg) {
+    case CFG_METHOD_26:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x5C8, 1, ERIAR_ExGMAC);
+        csi_tmp |= BIT_0;
+        rtl8168_eri_write(ioaddr, 0x5C8, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
+    }
+
+    switch (tp->mcfg) {
+    case CFG_METHOD_23:
+        rtl8168_eri_write(ioaddr, 0x2E8, 2, 0x883C, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2EA, 2, 0x8C12, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2EC, 2, 0x9003, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2E2, 2, 0x883C, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2E4, 2, 0x8C12, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2E6, 2, 0x9003, ERIAR_ExGMAC);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        rtl8168_eri_write(ioaddr, 0x2E8, 2, 0x9003, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2EA, 2, 0x9003, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2EC, 2, 0x9003, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2E2, 2, 0x883C, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2E4, 2, 0x8C12, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0x2E6, 2, 0x9003, ERIAR_ExGMAC);
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x3FA, 2, ERIAR_ExGMAC);
+        csi_tmp |= BIT_14;
+        rtl8168_eri_write(ioaddr, 0x3FA, 2, csi_tmp, ERIAR_ExGMAC);
+
+        break;
+    }
+
+    rtl8168_enable_pci_offset_99(tp);
+
+    switch (tp->mcfg) {
+    case CFG_METHOD_26:
+        RTL_W8(0xB6, RTL_R8(0xB6) | BIT_0);
+        break;
+    }
+}
+
+static void
+rtl8168_disable_pci_offset_180(struct rtl8168_private *tp)
+{
+    void __iomem *ioaddr = tp->mmio_addr;
+    u32 csi_tmp;
+
+    switch (tp->mcfg) {
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x1E2, 1, ERIAR_ExGMAC);
+        csi_tmp &= ~BIT_2;
+        rtl8168_eri_write(ioaddr, 0x1E2, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
+    }
+
+    switch (tp->mcfg) {
+    case CFG_METHOD_26:
+        rtl8168_eri_write(ioaddr, 0x1E9, 1, 0x0A, ERIAR_ExGMAC);
+        break;
     }
 }
 
@@ -2079,118 +2277,122 @@ rtl8168_enable_pci_offset_180(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     u32 csi_tmp;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x1E2, 1, ERIAR_ExGMAC);
-            csi_tmp &= ~BIT_2;
-            if (tp->org_pci_offset_180 & (BIT_0|BIT_1))
-                csi_tmp |= BIT_2;
-            rtl8168_eri_write(ioaddr, 0x1E2, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x1E2, 1, ERIAR_ExGMAC);
+        csi_tmp &= ~BIT_2;
+        if (tp->org_pci_offset_180 & (BIT_0|BIT_1))
+            csi_tmp |= BIT_2;
+        rtl8168_eri_write(ioaddr, 0x1E2, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_26:
-            if (tp->org_pci_offset_180 & (BIT_0|BIT_1))
-                rtl8168_eri_write(ioaddr, 0x1E9, 1, 0x64, ERIAR_ExGMAC);
-            else
-                rtl8168_eri_write(ioaddr, 0x1E9, 1, 0x0A, ERIAR_ExGMAC);
-            break;
+    case CFG_METHOD_26:
+        if (tp->org_pci_offset_180 & (BIT_0|BIT_1))
+            rtl8168_eri_write(ioaddr, 0x1E9, 1, 0x64, ERIAR_ExGMAC);
+        else
+            rtl8168_eri_write(ioaddr, 0x1E9, 1, 0x0A, ERIAR_ExGMAC);
+        break;
     }
 }
 
-void rtl8168_init_pci_offset_180(struct rtl8168_private *tp)
+static void
+rtl8168_init_pci_offset_180(struct rtl8168_private *tp)
 {
     rtl8168_enable_pci_offset_180(tp);
 }
-
-#if DISABLED_CODE
 
 static void
 rtl8168_set_pci_99_180_exit_driver_para(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_27:
-            rtl8168_issue_offset_99_event(tp);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        rtl8168_issue_offset_99_event(tp);
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            rtl8168_disable_pci_offset_99(tp);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        rtl8168_disable_pci_offset_99(tp);
+        break;
     }
     switch (tp->mcfg) {
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            rtl8168_disable_pci_offset_180(tp);
-            break;
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        rtl8168_disable_pci_offset_180(tp);
+        break;
     }
 }
 
-void
+static void
 rtl8168_hw_d3_para(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     RTL_W16(RxMaxSize, RX_BUF_SIZE);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            RTL_W8(0xF1, RTL_R8(0xF1) & ~BIT_7);
-            RTL_W8(Cfg9346, Cfg9346_Unlock);
-            RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
-            RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
-            RTL_W8(Cfg9346, Cfg9346_Lock);
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        RTL_W8(0xF1, RTL_R8(0xF1) & ~BIT_7);
+        RTL_W8(Cfg9346, Cfg9346_Unlock);
+        RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
+        RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
+        RTL_W8(Cfg9346, Cfg9346_Lock);
+        break;
     }
-    
+
     if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
         tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_24 ||
         tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
-        tp->mcfg == CFG_METHOD_27) {
+        tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
         rtl8168_eri_write(ioaddr, 0x2F8, 2, 0x0064, ERIAR_ExGMAC);
     }
-    
+
     if (tp->bios_setting & BIT_28) {
         if (tp->mcfg == CFG_METHOD_18 || tp->mcfg == CFG_METHOD_19 ||
             tp->mcfg == CFG_METHOD_20) {
             u32 gphy_val;
-            
+
             spin_lock_irqsave(&tp->phy_lock, flags);
             mdio_write(tp, 0x1F, 0x0000);
             mdio_write(tp, 0x04, 0x0061);
@@ -2211,11 +2413,12 @@ rtl8168_hw_d3_para(struct net_device *dev)
             spin_unlock_irqrestore(&tp->phy_lock, flags);
         }
     }
-    
+
     rtl8168_set_pci_99_180_exit_driver_para(dev);
-    
+
     /*disable ocp phy power saving*/
-    if (tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 || tp->mcfg == CFG_METHOD_27) {
+    if (tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
+        tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
         spin_lock_irqsave(&tp->phy_lock, flags);
         mdio_write(tp, 0x1F, 0x0C41);
         mdio_write(tp, 0x13, 0x0000);
@@ -2223,55 +2426,54 @@ rtl8168_hw_d3_para(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0000);
         spin_unlock_irqrestore(&tp->phy_lock, flags);
     }
-    
+
     rtl8168_disable_rxdvgate(dev);
 }
 
-#endif  /* DISABLED_CODE */
-
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
 
-void rtl8168_get_hw_wol(struct net_device *dev)
+static void
+rtl8168_get_hw_wol(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     u8 options;
     u32 csi_tmp;
-    //unsigned long flags;
-    
-    
+    unsigned long flags;
+
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     tp->wol_opts = 0;
     options = RTL_R8(Config1);
     if (!(options & PMEnable))
         goto out_unlock;
-    
+
     options = RTL_R8(Config3);
     if (options & LinkUp)
         tp->wol_opts |= WAKE_PHY;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0xDE, 1, ERIAR_ExGMAC);
-            if (csi_tmp & BIT_0)
-                tp->wol_opts |= WAKE_MAGIC;
-            break;
-        default:
-            if (options & MagicPacket)
-                tp->wol_opts |= WAKE_MAGIC;
-            break;
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0xDE, 1, ERIAR_ExGMAC);
+        if (csi_tmp & BIT_0)
+            tp->wol_opts |= WAKE_MAGIC;
+        break;
+    default:
+        if (options & MagicPacket)
+            tp->wol_opts |= WAKE_MAGIC;
+        break;
     }
-    
+
     options = RTL_R8(Config5);
     if (options & UWF)
         tp->wol_opts |= WAKE_UCAST;
@@ -2279,10 +2481,10 @@ void rtl8168_get_hw_wol(struct net_device *dev)
         tp->wol_opts |= WAKE_BCAST;
     if (options & MWF)
         tp->wol_opts |= WAKE_MCAST;
-    
+
 out_unlock:
     tp->wol_enabled = (tp->wol_opts) ? WOL_ENABLED : WOL_DISABLED;
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
 }
 
@@ -2306,75 +2508,76 @@ rtl8168_set_hw_wol(struct net_device *dev, u32 wolopts)
         { WAKE_ANY,   Config5, LanWake },
         { WAKE_MAGIC, Config3, MagicPacket },
     };
-    
+
     RTL_W8(Cfg9346, Cfg9346_Unlock);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-            tmp = ARRAY_SIZE(cfg) - 1;
-            
-            csi_tmp = rtl8168_eri_read(ioaddr, 0xDE, 1, ERIAR_ExGMAC);
-            if (wolopts & WAKE_MAGIC)
-                csi_tmp |= BIT_0;
-            else
-                csi_tmp &= ~BIT_0;
-            rtl8168_eri_write(ioaddr, 0xDE, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
-        default:
-            tmp = ARRAY_SIZE(cfg);
-            break;
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+        tmp = ARRAY_SIZE(cfg) - 1;
+
+        csi_tmp = rtl8168_eri_read(ioaddr, 0xDE, 1, ERIAR_ExGMAC);
+        if (wolopts & WAKE_MAGIC)
+            csi_tmp |= BIT_0;
+        else
+            csi_tmp &= ~BIT_0;
+        rtl8168_eri_write(ioaddr, 0xDE, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
+    default:
+        tmp = ARRAY_SIZE(cfg);
+        break;
     }
-    
+
     for (i = 0; i < tmp; i++) {
         u8 options = RTL_R8(cfg[i].reg) & ~cfg[i].mask;
         if (wolopts & cfg[i].opt)
             options |= cfg[i].mask;
         RTL_W8(cfg[i].reg, options);
     }
-    
+
     RTL_W8(Cfg9346, Cfg9346_Lock);
 }
 
-void
+static void
 rtl8168_powerdown_pll(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
-    if (tp->wol_enabled == WOL_ENABLED) {
+
+    if (tp->wol_enabled == WOL_ENABLED || tp->DASH) {
         int auto_nego;
         int giga_ctrl;
         u16 val;
-        //unsigned long flags;
-        
+        unsigned long flags;
+
         rtl8168_set_hw_wol(dev, tp->wol_opts);
-        
+
         if (tp->mcfg == CFG_METHOD_16 || tp->mcfg == CFG_METHOD_17 ||
             tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
             tp->mcfg == CFG_METHOD_24 || tp->mcfg == CFG_METHOD_25 ||
-            tp->mcfg == CFG_METHOD_26) {
+            tp->mcfg == CFG_METHOD_26 || tp->mcfg == CFG_METHOD_23 ||
+            tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
             RTL_W8(Cfg9346, Cfg9346_Unlock);
             RTL_W8(Config2, RTL_R8(Config2) | PMSTS_En);
             RTL_W8(Cfg9346, Cfg9346_Lock);
         }
-        
+
         spin_lock_irqsave(&tp->phy_lock, flags);
         mdio_write(tp, 0x1F, 0x0000);
         auto_nego = mdio_read(tp, MII_ADVERTISE);
         auto_nego &= ~(ADVERTISE_10HALF | ADVERTISE_10FULL
                        | ADVERTISE_100HALF | ADVERTISE_100FULL);
-        
+
         val = mdio_read(tp, MII_LPA);
-        
+
 #ifdef CONFIG_DOWN_SPEED_100
         auto_nego |= (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10HALF | ADVERTISE_10FULL);
 #else
@@ -2383,87 +2586,81 @@ rtl8168_powerdown_pll(struct net_device *dev)
         else
             auto_nego |= (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10HALF | ADVERTISE_10FULL);
 #endif
-        
-        if ((tp->mcfg == CFG_METHOD_11 || tp->mcfg == CFG_METHOD_12 ||
-             tp->mcfg == CFG_METHOD_13 || tp->mcfg == CFG_METHOD_23 ||
-             tp->mcfg == CFG_METHOD_27) && rtl8168_check_dash(tp))
+
+        if (tp->DASH)
             auto_nego |= (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10HALF | ADVERTISE_10FULL);
-        
+
         if (((tp->mcfg == CFG_METHOD_7) || (tp->mcfg == CFG_METHOD_8)) && (RTL_R16(CPlusCmd) & ASF))
             auto_nego |= (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10HALF | ADVERTISE_10FULL);
-        
+
         giga_ctrl = mdio_read(tp, MII_CTRL1000) & ~(ADVERTISE_1000HALF | ADVERTISE_1000FULL);
         mdio_write(tp, MII_ADVERTISE, auto_nego);
         mdio_write(tp, MII_CTRL1000, giga_ctrl);
         mdio_write(tp, MII_BMCR, BMCR_RESET | BMCR_ANENABLE | BMCR_ANRESTART);
         spin_unlock_irqrestore(&tp->phy_lock, flags);
-        
+
         RTL_W32(RxConfig, RTL_R32(RxConfig) | AcceptBroadcast | AcceptMulticast | AcceptMyPhys);
-        
+
         return;
     }
-    
-    if ((tp->mcfg == CFG_METHOD_11 || tp->mcfg == CFG_METHOD_12 ||
-         tp->mcfg == CFG_METHOD_13 || tp->mcfg == CFG_METHOD_23 ||
-         tp->mcfg == CFG_METHOD_27) && rtl8168_check_dash(tp))
+
+    if (tp->DASH)
         return;
-    
+
     if (((tp->mcfg == CFG_METHOD_7) || (tp->mcfg == CFG_METHOD_8)) && (RTL_R16(CPlusCmd) & ASF))
         return;
-    
+
     rtl8168_phy_power_down(dev);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-            RTL_W8(PMCH, RTL_R8(PMCH) & ~BIT_7);
-            break;
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+        RTL_W8(PMCH, RTL_R8(PMCH) & ~BIT_7);
+        break;
     }
 }
 
-void rtl8168_powerup_pll(struct net_device *dev)
+static void rtl8168_powerup_pll(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
-    
+
+
     switch (tp->mcfg) {
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-            RTL_W8(PMCH, RTL_R8(PMCH) | BIT_7 | BIT_6);
-            break;
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+        RTL_W8(PMCH, RTL_R8(PMCH) | BIT_7 | BIT_6);
+        break;
     }
-    
+
     rtl8168_phy_power_up (dev);
 }
-
-#if DISABLED_CODE
 
 static void
 rtl8168_get_wol(struct net_device *dev,
@@ -2473,24 +2670,24 @@ rtl8168_get_wol(struct net_device *dev,
     void __iomem *ioaddr = tp->mmio_addr;
     u8 options;
     unsigned long flags;
-    
+
     wol->wolopts = 0;
-    
+
     if (tp->mcfg == CFG_METHOD_DEFAULT) {
         wol->supported = 0;
         return;
     } else {
         wol->supported = WAKE_ANY;
     }
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     options = RTL_R8(Config1);
     if (!(options & PMEnable))
         goto out_unlock;
-    
+
     wol->wolopts = tp->wol_opts;
-    
+
 out_unlock:
     spin_unlock_irqrestore(&tp->lock, flags);
 }
@@ -2501,18 +2698,18 @@ rtl8168_set_wol(struct net_device *dev,
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned long flags;
-    
+
     if (tp->mcfg == CFG_METHOD_DEFAULT)
         return -EOPNOTSUPP;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     tp->wol_opts = wol->wolopts;
-    
+
     tp->wol_enabled = (tp->wol_opts) ? WOL_ENABLED : WOL_DISABLED;
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return 0;
 }
 
@@ -2521,7 +2718,7 @@ rtl8168_get_drvinfo(struct net_device *dev,
                     struct ethtool_drvinfo *info)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     strcpy(info->driver, MODULENAME);
     strcpy(info->version, RTL8168_VERSION);
     strcpy(info->bus_info, pci_name(tp->pci_dev));
@@ -2535,9 +2732,7 @@ rtl8168_get_regs_len(struct net_device *dev)
     return R8168_REGS_SIZE;
 }
 
-#endif /* DISABLED_CODE */
-
-int
+static int
 rtl8168_set_speed_xmii(struct net_device *dev,
                        u8 autoneg,
                        u16 speed,
@@ -2547,53 +2742,54 @@ rtl8168_set_speed_xmii(struct net_device *dev,
     int auto_nego = 0;
     int giga_ctrl = 0;
     int bmcr_true_force = 0;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     if ((speed != SPEED_1000) &&
         (speed != SPEED_100) &&
         (speed != SPEED_10)) {
         speed = SPEED_1000;
         duplex = DUPLEX_FULL;
     }
-    
+
     auto_nego = mdio_read(tp, MII_ADVERTISE);
     auto_nego &= ~(ADVERTISE_10HALF | ADVERTISE_10FULL | ADVERTISE_100HALF | ADVERTISE_100FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-    
+
     giga_ctrl = mdio_read(tp, MII_CTRL1000);
     giga_ctrl &= ~(ADVERTISE_1000HALF | ADVERTISE_1000FULL);
-    
+
     if ((autoneg == AUTONEG_ENABLE) || (speed == SPEED_1000)) {
         /*n-way force*/
         if ((speed == SPEED_10) && (duplex == DUPLEX_HALF)) {
             auto_nego |= ADVERTISE_10HALF;
         } else if ((speed == SPEED_10) && (duplex == DUPLEX_FULL)) {
             auto_nego |= ADVERTISE_10HALF |
-            ADVERTISE_10FULL;
+                         ADVERTISE_10FULL;
         } else if ((speed == SPEED_100) && (duplex == DUPLEX_HALF)) {
             auto_nego |= ADVERTISE_100HALF |
-            ADVERTISE_10HALF |
-            ADVERTISE_10FULL;
+                         ADVERTISE_10HALF |
+                         ADVERTISE_10FULL;
         } else if ((speed == SPEED_100) && (duplex == DUPLEX_FULL)) {
             auto_nego |= ADVERTISE_100HALF |
-            ADVERTISE_100FULL |
-            ADVERTISE_10HALF |
-            ADVERTISE_10FULL;
+                         ADVERTISE_100FULL |
+                         ADVERTISE_10HALF |
+                         ADVERTISE_10FULL;
         } else if (speed == SPEED_1000) {
             giga_ctrl |= ADVERTISE_1000HALF |
-            ADVERTISE_1000FULL;
-            
+                         ADVERTISE_1000FULL;
+
             auto_nego |= ADVERTISE_100HALF |
-            ADVERTISE_100FULL |
-            ADVERTISE_10HALF |
-            ADVERTISE_10FULL;
+                         ADVERTISE_100FULL |
+                         ADVERTISE_10HALF |
+                         ADVERTISE_10FULL;
         }
-        
+
         //flow contorol
-        auto_nego |= ADVERTISE_PAUSE_CAP|ADVERTISE_PAUSE_ASYM;
-        
+        if (dev->mtu <= ETH_DATA_LEN)
+            auto_nego |= ADVERTISE_PAUSE_CAP|ADVERTISE_PAUSE_ASYM;
+
         tp->phy_auto_nego_reg = auto_nego;
         tp->phy_1000_ctrl_reg = giga_ctrl;
-        
+
         spin_lock_irqsave(&tp->phy_lock, flags);
         mdio_write(tp, 0x1f, 0x0000);
         mdio_write(tp, MII_ADVERTISE, auto_nego);
@@ -2606,7 +2802,7 @@ rtl8168_set_speed_xmii(struct net_device *dev,
 #ifndef BMCR_SPEED100
 #define BMCR_SPEED100   0x0040
 #endif
-        
+
 #ifndef BMCR_SPEED10
 #define BMCR_SPEED10    0x0000
 #endif
@@ -2619,24 +2815,24 @@ rtl8168_set_speed_xmii(struct net_device *dev,
         } else if ((speed == SPEED_100) && (duplex == DUPLEX_FULL)) {
             bmcr_true_force = BMCR_SPEED100 | BMCR_FULLDPLX;
         }
-        
+
         spin_lock_irqsave(&tp->phy_lock, flags);
         mdio_write(tp, 0x1f, 0x0000);
         mdio_write(tp, MII_BMCR, bmcr_true_force);
         spin_unlock_irqrestore(&tp->phy_lock, flags);
     }
-    
+
     tp->autoneg = autoneg;
     tp->speed = speed;
     tp->duplex = duplex;
-    
+
     if (tp->mcfg == CFG_METHOD_11)
         rtl8168dp_10mbps_gphy_para(dev);
-    
+
     return 0;
 }
 
-int
+static int
 rtl8168_set_speed(struct net_device *dev,
                   u8 autoneg,
                   u16 speed,
@@ -2644,13 +2840,11 @@ rtl8168_set_speed(struct net_device *dev,
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     int ret;
-    
+
     ret = tp->set_speed(dev, autoneg, speed, duplex);
-    
+
     return ret;
 }
-
-#if DISABLED_CODE
 
 static int
 rtl8168_set_settings(struct net_device *dev,
@@ -2659,11 +2853,11 @@ rtl8168_set_settings(struct net_device *dev,
     struct rtl8168_private *tp = netdev_priv(dev);
     int ret;
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
     ret = rtl8168_set_speed(dev, cmd->autoneg, cmd->speed, cmd->duplex);
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return ret;
 }
 
@@ -2674,11 +2868,11 @@ rtl8168_get_tx_csum(struct net_device *dev)
     struct rtl8168_private *tp = netdev_priv(dev);
     u32 ret;
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
     ret = ((dev->features & NETIF_F_IP_CSUM) != 0);
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return ret;
 }
 
@@ -2688,11 +2882,11 @@ rtl8168_get_rx_csum(struct net_device *dev)
     struct rtl8168_private *tp = netdev_priv(dev);
     u32 ret;
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
     ret = tp->cp_cmd & RxChkSum;
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return ret;
 }
 
@@ -2702,19 +2896,19 @@ rtl8168_set_tx_csum(struct net_device *dev,
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned long flags;
-    
+
     if (tp->mcfg == CFG_METHOD_DEFAULT)
         return -EOPNOTSUPP;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     if (data)
         dev->features |= NETIF_F_IP_CSUM;
     else
         dev->features &= ~NETIF_F_IP_CSUM;
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return 0;
 }
 
@@ -2725,21 +2919,21 @@ rtl8168_set_rx_csum(struct net_device *dev,
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     unsigned long flags;
-    
+
     if (tp->mcfg == CFG_METHOD_DEFAULT)
         return -EOPNOTSUPP;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     if (data)
         tp->cp_cmd |= RxChkSum;
     else
         tp->cp_cmd &= ~RxChkSum;
-    
+
     RTL_W16(CPlusCmd, tp->cp_cmd);
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return 0;
 }
 #endif
@@ -2751,15 +2945,15 @@ rtl8168_tx_vlan_tag(struct rtl8168_private *tp,
                     struct sk_buff *skb)
 {
     u32 tag;
-    
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
     tag = (tp->vlgrp && vlan_tx_tag_present(skb)) ?
-    TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
+          TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
 #else
     tag = (vlan_tx_tag_present(skb)) ?
-    TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
+          TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
 #endif
-    
+
     return tag;
 }
 
@@ -2772,7 +2966,7 @@ rtl8168_vlan_rx_register(struct net_device *dev,
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
     tp->vlgrp = grp;
     if (tp->vlgrp)
@@ -2793,7 +2987,7 @@ rtl8168_vlan_rx_kill_vid(struct net_device *dev,
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)
     if (tp->vlgrp)
@@ -2812,7 +3006,7 @@ rtl8168_rx_vlan_skb(struct rtl8168_private *tp,
 {
     u32 opts2 = le32_to_cpu(desc->opts2);
     int ret = -1;
-    
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
     if (tp->vlgrp && (opts2 & RxVlanTag)) {
         rtl8168_rx_hwaccel_skb(skb, tp->vlgrp,
@@ -2826,7 +3020,7 @@ rtl8168_rx_vlan_skb(struct rtl8168_private *tp,
     if (opts2 & RxVlanTag)
         __vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), swab16(opts2 & 0xffff));
 #endif
-    
+
     desc->opts2 = 0;
     return ret;
 }
@@ -2856,19 +3050,19 @@ rtl8168_rx_vlan_skb(struct rtl8168_private *tp,
 static u32 rtl8168_fix_features(struct net_device *dev, u32 features)
 #else
 static netdev_features_t rtl8168_fix_features(struct net_device *dev,
-                                              netdev_features_t features)
+        netdev_features_t features)
 #endif
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
     if (dev->mtu > ETH_DATA_LEN) {
         features &= ~NETIF_F_ALL_TSO;
         features &= ~NETIF_F_ALL_CSUM;
     }
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return features;
 }
 
@@ -2881,20 +3075,20 @@ static int rtl8168_hw_set_features(struct net_device *dev,
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     if (features & NETIF_F_RXCSUM)
         tp->cp_cmd |= RxChkSum;
     else
         tp->cp_cmd &= ~RxChkSum;
-    
+
     if (dev->features & NETIF_F_HW_VLAN_RX)
         tp->cp_cmd |= RxVlan;
     else
         tp->cp_cmd &= ~RxVlan;
-    
+
     RTL_W16(CPlusCmd, tp->cp_cmd);
     RTL_R16(CPlusCmd);
-    
+
     return 0;
 }
 
@@ -2907,41 +3101,39 @@ static int rtl8168_set_features(struct net_device *dev,
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     rtl8168_hw_set_features(dev, features);
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return 0;
 }
 
 #endif
 
-#endif  /* DISABLED_CODE */
-
-void rtl8168_gset_xmii(struct net_device *dev,
+static void rtl8168_gset_xmii(struct net_device *dev,
                               struct ethtool_cmd *cmd)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     u8 status;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     cmd->supported = SUPPORTED_10baseT_Half |
-    SUPPORTED_10baseT_Full |
-    SUPPORTED_100baseT_Half |
-    SUPPORTED_100baseT_Full |
-    SUPPORTED_1000baseT_Full |
-    SUPPORTED_Autoneg |
-    SUPPORTED_TP;
-    
+                     SUPPORTED_10baseT_Full |
+                     SUPPORTED_100baseT_Half |
+                     SUPPORTED_100baseT_Full |
+                     SUPPORTED_1000baseT_Full |
+                     SUPPORTED_Autoneg |
+                     SUPPORTED_TP;
+
     spin_lock_irqsave(&tp->phy_lock, flags);
     cmd->autoneg = (mdio_read(tp, MII_BMCR) & BMCR_ANENABLE) ? 1 : 0;
     spin_unlock_irqrestore(&tp->phy_lock, flags);
     cmd->advertising = ADVERTISED_TP | ADVERTISED_Autoneg;
-    
+
     if (tp->phy_auto_nego_reg & ADVERTISE_10HALF)
         cmd->advertising |= ADVERTISED_10baseT_Half;
     if (tp->phy_auto_nego_reg & ADVERTISE_10FULL)
@@ -2952,38 +3144,36 @@ void rtl8168_gset_xmii(struct net_device *dev,
         cmd->advertising |= ADVERTISED_100baseT_Full;
     if (tp->phy_1000_ctrl_reg & ADVERTISE_1000FULL)
         cmd->advertising |= ADVERTISED_1000baseT_Full;
-    
+
     status = RTL_R8(PHYstatus);
-    
+
     if (status & _1000bpsF)
         cmd->speed = SPEED_1000;
     else if (status & _100bps)
         cmd->speed = SPEED_100;
     else if (status & _10bps)
         cmd->speed = SPEED_10;
-    
+
     if (status & TxFlowCtrl)
         cmd->advertising |= ADVERTISED_Asym_Pause;
-    
+
     if (status & RxFlowCtrl)
         cmd->advertising |= ADVERTISED_Pause;
-    
-    cmd->duplex = ((status & _1000bpsF) || (status & FullDup)) ?
-    DUPLEX_FULL : DUPLEX_HALF;
-    
-    
-}
 
-#if DISABLED_CODE
+    cmd->duplex = ((status & _1000bpsF) || (status & FullDup)) ?
+                  DUPLEX_FULL : DUPLEX_HALF;
+
+
+}
 
 static int
 rtl8168_get_settings(struct net_device *dev,
                      struct ethtool_cmd *cmd)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     tp->get_settings(dev, cmd);
-    
+
     return 0;
 }
 
@@ -2994,10 +3184,10 @@ static void rtl8168_get_regs(struct net_device *dev, struct ethtool_regs *regs,
     unsigned int i;
     u8 *data = p;
     unsigned long flags;
-    
+
     if (regs->len > R8168_REGS_SIZE)
         regs->len = R8168_REGS_SIZE;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
     for (i = 0; i < regs->len; i++)
         data[i] = readb(tp->mmio_addr + i);
@@ -3008,7 +3198,7 @@ static u32
 rtl8168_get_msglevel(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     return tp->msg_enable;
 }
 
@@ -3017,7 +3207,7 @@ rtl8168_set_msglevel(struct net_device *dev,
                      u32 value)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     tp->msg_enable = value;
 }
 
@@ -3062,10 +3252,10 @@ static int rtl8168_get_stats_count(struct net_device *dev)
 static int rtl8168_get_sset_count(struct net_device *dev, int sset)
 {
     switch (sset) {
-        case ETH_SS_STATS:
-            return ARRAY_SIZE(rtl8168_gstrings);
-        default:
-            return -EOPNOTSUPP;
+    case ETH_SS_STATS:
+        return ARRAY_SIZE(rtl8168_gstrings);
+    default:
+        return -EOPNOTSUPP;
     }
 }
 #endif
@@ -3079,24 +3269,24 @@ rtl8168_get_ethtool_stats(struct net_device *dev,
     struct rtl8168_counters *counters;
     dma_addr_t paddr;
     u32 cmd;
-    
+
     ASSERT_RTNL();
-    
+
     counters = tp->tally_vaddr;
     paddr = tp->tally_paddr;
     if (!counters)
         return;
-    
+
     RTL_W32(CounterAddrHigh, (u64)paddr >> 32);
     cmd = (u64)paddr & DMA_BIT_MASK(32);
     RTL_W32(CounterAddrLow, cmd);
     RTL_W32(CounterAddrLow, cmd | CounterDump);
-    
+
     while (RTL_R32(CounterAddrLow) & CounterDump) {
         if (msleep_interruptible(1))
             break;
     }
-    
+
     data[0] = le64_to_cpu(counters->tx_packets);
     data[1] = le64_to_cpu(counters->rx_packets);
     data[2] = le64_to_cpu(counters->tx_errors);
@@ -3118,15 +3308,15 @@ rtl8168_get_strings(struct net_device *dev,
                     u8 *data)
 {
     switch (stringset) {
-        case ETH_SS_STATS:
-            memcpy(data, *rtl8168_gstrings, sizeof(rtl8168_gstrings));
-            break;
+    case ETH_SS_STATS:
+        memcpy(data, *rtl8168_gstrings, sizeof(rtl8168_gstrings));
+        break;
     }
 }
 static int rtl_get_eeprom_len(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     return tp->eeprom_len;
 }
 
@@ -3139,7 +3329,7 @@ static int rtl_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
     u32 *eeprom_buff;
     u16 tmp;
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     if (tp->eeprom_type==EEPROM_TYPE_NONE) {
         dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Detect none EEPROM\n");
         return -EOPNOTSUPP;
@@ -3147,34 +3337,34 @@ static int rtl_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
         dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Invalid parameter\n");
         return -EINVAL;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-            VPD_addr = 0xCE;
-            VPD_data = 0xD0;
-            break;
-            
-        case CFG_METHOD_1:
-        case CFG_METHOD_2:
-        case CFG_METHOD_3:
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-            return -EOPNOTSUPP;
-        default:
-            VPD_addr = 0xD2;
-            VPD_data = 0xD4;
-            break;
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+        VPD_addr = 0xCE;
+        VPD_data = 0xD0;
+        break;
+
+    case CFG_METHOD_1:
+    case CFG_METHOD_2:
+    case CFG_METHOD_3:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+        return -EOPNOTSUPP;
+    default:
+        VPD_addr = 0xD2;
+        VPD_data = 0xD4;
+        break;
     }
-    
+
     start_w = eeprom->offset >> 2;
     end_w = (eeprom->offset + eeprom->len - 1) >> 2;
-    
+
     eeprom_buff = kmalloc(sizeof(u32)*(end_w - start_w + 1), GFP_KERNEL);
     if (!eeprom_buff)
         return -ENOMEM;
-    
+
     RTL_W8(Cfg9346, Cfg9346_Unlock);
     ret = -EFAULT;
     for (i=start_w; i<=end_w; i++) {
@@ -3188,19 +3378,19 @@ static int rtl_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
                 break;
             }
         }
-        
+
         if (ret)
             break;
-        
+
         pci_read_config_dword(tp->pci_dev, VPD_data, &eeprom_buff[i-start_w]);
     }
     RTL_W8(Cfg9346, Cfg9346_Lock);
-    
+
     if (!ret)
         memcpy(buf, (u8 *)eeprom_buff + (eeprom->offset & 3), eeprom->len);
-    
+
     kfree(eeprom_buff);
-    
+
     return ret;
 }
 
@@ -3228,17 +3418,17 @@ u32 _kc_ethtool_op_get_sg(struct net_device *dev)
 int _kc_ethtool_op_set_sg(struct net_device *dev, u32 data)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     if (tp->mcfg == CFG_METHOD_DEFAULT)
         return -EOPNOTSUPP;
-    
+
 #ifdef NETIF_F_SG
     if (data)
         dev->features |= NETIF_F_SG;
     else
         dev->features &= ~NETIF_F_SG;
 #endif
-    
+
     return 0;
 }
 #endif
@@ -3285,182 +3475,183 @@ static const struct ethtool_ops rtl8168_ethtool_ops = {
 #endif //LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 };
 
-#endif  /* DISABLED_CODE */
 
 static int rtl8168_enable_EEE(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
     int ret;
     u16 data;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     ret = 0;
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0007);
+        mdio_write(tp, 0x1E, 0x0020);
+        data = mdio_read(tp, 0x15) | 0x0100;
+        mdio_write(tp, 0x15, data);
+        mdio_write(tp, 0x1F, 0x0006);
+        mdio_write(tp, 0x00, 0x5A30);
+        mdio_write(tp, 0x1F, 0x0000);
+        mdio_write(tp, 0x0D, 0x0007);
+        mdio_write(tp, 0x0E, 0x003C);
+        mdio_write(tp, 0x0D, 0x4007);
+        mdio_write(tp, 0x0E, 0x0006);
+        mdio_write(tp, 0x0D, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        if ((RTL_R8(Config4)&0x40) && (RTL_R8(0x6D) & BIT_7)) {
+            data = RTL_R16(CustomLED);
             spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0007);
-            mdio_write(tp, 0x1E, 0x0020);
-            data = mdio_read(tp, 0x15) | 0x0100;
-            mdio_write(tp, 0x15, data);
-            mdio_write(tp, 0x1F, 0x0006);
-            mdio_write(tp, 0x00, 0x5A30);
-            mdio_write(tp, 0x1F, 0x0000);
-            mdio_write(tp, 0x0D, 0x0007);
-            mdio_write(tp, 0x0E, 0x003C);
-            mdio_write(tp, 0x0D, 0x4007);
-            mdio_write(tp, 0x0E, 0x0006);
-            mdio_write(tp, 0x0D, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            if ((RTL_R8(Config4)&0x40) && (RTL_R8(0x6D) & BIT_7)) {
-                data = RTL_R16(CustomLED);
-                spin_lock_irqsave(&tp->phy_lock, flags);
-                mdio_write(tp, 0x1F, 0x0005);
-                mdio_write(tp, 0x05, 0x8AC8);
-                mdio_write(tp, 0x06, data);
-                mdio_write(tp, 0x05, 0x8B82);
-                data = mdio_read(tp, 0x06) | 0x0010;
-                mdio_write(tp, 0x05, 0x8B82);
-                mdio_write(tp, 0x06, data);
-                mdio_write(tp, 0x1F, 0x0000);
-                spin_unlock_irqrestore(&tp->phy_lock, flags);
-            }
-            break;
-            
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC) | 0x0003;
-            rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
-            mdio_write(tp,0x1F , 0x0004);
-            mdio_write(tp,0x1F , 0x0007);
-            mdio_write(tp,0x1E , 0x0020);
-            data = mdio_read(tp, 0x15)|0x0100;
-            mdio_write(tp,0x15 , data);
-            mdio_write(tp,0x1F , 0x0002);
-            mdio_write(tp,0x1F , 0x0005);
-            mdio_write(tp,0x05 , 0x8B85);
-            data = mdio_read(tp, 0x06)|0x2000;
-            mdio_write(tp,0x06 , data);
-            mdio_write(tp,0x1F , 0x0000);
-            mdio_write(tp,0x0D , 0x0007);
-            mdio_write(tp,0x0E , 0x003C);
-            mdio_write(tp,0x0D , 0x4007);
-            mdio_write(tp,0x0E , 0x0006);
-            mdio_write(tp,0x1D , 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC);
-            data |= BIT_1 | BIT_0;
-            rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
-            mdio_write(tp, 0x1F, 0x0007);
-            mdio_write(tp, 0x1e, 0x0020);
-            data = mdio_read(tp, 0x15);
-            data |= BIT_8;
-            mdio_write(tp, 0x15, data);
             mdio_write(tp, 0x1F, 0x0005);
-            mdio_write(tp, 0x05, 0x8B85);
-            data = mdio_read(tp, 0x06);
-            data |= BIT_13;
+            mdio_write(tp, 0x05, 0x8AC8);
+            mdio_write(tp, 0x06, data);
+            mdio_write(tp, 0x05, 0x8B82);
+            data = mdio_read(tp, 0x06) | 0x0010;
+            mdio_write(tp, 0x05, 0x8B82);
             mdio_write(tp, 0x06, data);
             mdio_write(tp, 0x1F, 0x0000);
-            mdio_write(tp, 0x0D, 0x0007);
-            mdio_write(tp, 0x0E, 0x003C);
-            mdio_write(tp, 0x0D, 0x4007);
-            mdio_write(tp, 0x0E, 0x0006);
-            mdio_write(tp, 0x0D, 0x0000);
             spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            data = rtl8168_eri_read(ioaddr, 0x1B0, 4, ERIAR_ExGMAC);
-            data |= BIT_1 | BIT_0;
-            rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
-            mdio_write(tp, 0x1F, 0x0A43);
-            data = mdio_read(tp, 0x11);
-            mdio_write(tp, 0x11, data | BIT_4);
-            mdio_write(tp, 0x1F, 0x0A5D);
-            mdio_write(tp, 0x10, 0x0006);
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        default:
-            //      dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support EEE\n");
-            ret = -EOPNOTSUPP;
+        }
+        break;
+
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC) | 0x0003;
+        rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
+        mdio_write(tp,0x1F , 0x0004);
+        mdio_write(tp,0x1F , 0x0007);
+        mdio_write(tp,0x1E , 0x0020);
+        data = mdio_read(tp, 0x15)|0x0100;
+        mdio_write(tp,0x15 , data);
+        mdio_write(tp,0x1F , 0x0002);
+        mdio_write(tp,0x1F , 0x0005);
+        mdio_write(tp,0x05 , 0x8B85);
+        data = mdio_read(tp, 0x06)|0x2000;
+        mdio_write(tp,0x06 , data);
+        mdio_write(tp,0x1F , 0x0000);
+        mdio_write(tp,0x0D , 0x0007);
+        mdio_write(tp,0x0E , 0x003C);
+        mdio_write(tp,0x0D , 0x4007);
+        mdio_write(tp,0x0E , 0x0006);
+        mdio_write(tp,0x1D , 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC);
+        data |= BIT_1 | BIT_0;
+        rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
+        mdio_write(tp, 0x1F, 0x0007);
+        mdio_write(tp, 0x1e, 0x0020);
+        data = mdio_read(tp, 0x15);
+        data |= BIT_8;
+        mdio_write(tp, 0x15, data);
+        mdio_write(tp, 0x1F, 0x0005);
+        mdio_write(tp, 0x05, 0x8B85);
+        data = mdio_read(tp, 0x06);
+        data |= BIT_13;
+        mdio_write(tp, 0x06, data);
+        mdio_write(tp, 0x1F, 0x0000);
+        mdio_write(tp, 0x0D, 0x0007);
+        mdio_write(tp, 0x0E, 0x003C);
+        mdio_write(tp, 0x0D, 0x4007);
+        mdio_write(tp, 0x0E, 0x0006);
+        mdio_write(tp, 0x0D, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        data = rtl8168_eri_read(ioaddr, 0x1B0, 4, ERIAR_ExGMAC);
+        data |= BIT_1 | BIT_0;
+        rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
+        mdio_write(tp, 0x1F, 0x0A43);
+        data = mdio_read(tp, 0x11);
+        mdio_write(tp, 0x11, data | BIT_4);
+        mdio_write(tp, 0x1F, 0x0A5D);
+        mdio_write(tp, 0x10, 0x0006);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    default:
+//      dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support EEE\n");
+        ret = -EOPNOTSUPP;
     }
-    
+
     /*Advanced EEE*/
     switch (tp->mcfg) {
-        case CFG_METHOD_25:
-            rtl8168_eri_write(ioaddr, 0x1EA, 1, 0xFA, ERIAR_ExGMAC);
-            
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0A43);
-            data = mdio_read(tp, 0x10);
-            if (data & BIT_10) {
-                mdio_write(tp, 0x1F, 0x0A42);
-                data = mdio_read(tp, 0x16);
-                data &= ~(BIT_1);
-                mdio_write(tp, 0x16, data);
-            } else {
-                mdio_write(tp, 0x1F, 0x0A42);
-                data = mdio_read(tp, 0x16);
-                data |= BIT_1;
-                mdio_write(tp, 0x16, data);
-            }
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-        case CFG_METHOD_26:
-            data = mac_ocp_read(tp, 0xE052);
-            data |= BIT_0;
-            mac_ocp_write(tp, 0xE052, data);
-            data = mac_ocp_read(tp, 0xE056);
-            data &= 0xFF0F;
-            data |= (BIT_4 | BIT_5 | BIT_6);
-            mac_ocp_write(tp, 0xE056, data);
-            
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0A43);
-            data = mdio_read(tp, 0x10);
-            if (data & BIT_10) {
-                mdio_write(tp, 0x1F, 0x0A42);
-                data = mdio_read(tp, 0x16);
-                data &= ~(BIT_1);
-                mdio_write(tp, 0x16, data);
-            } else {
-                mdio_write(tp, 0x1F, 0x0A42);
-                data = mdio_read(tp, 0x16);
-                data |= BIT_1;
-                mdio_write(tp, 0x16, data);
-            }
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-        case CFG_METHOD_27:
-            data = mac_ocp_read(tp, 0xE052);
-            data |= BIT_0;
-            mac_ocp_write(tp, 0xE052, data);
-            data = mac_ocp_read(tp, 0xE056);
-            data &= 0xFF0F;
-            data |= (BIT_4 | BIT_5 | BIT_6);
-            mac_ocp_write(tp, 0xE056, data);
-            break;
+    case CFG_METHOD_25:
+        rtl8168_eri_write(ioaddr, 0x1EA, 1, 0xFA, ERIAR_ExGMAC);
+
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0A43);
+        data = mdio_read(tp, 0x10);
+        if (data & BIT_10) {
+            mdio_write(tp, 0x1F, 0x0A42);
+            data = mdio_read(tp, 0x16);
+            data &= ~(BIT_1);
+            mdio_write(tp, 0x16, data);
+        } else {
+            mdio_write(tp, 0x1F, 0x0A42);
+            data = mdio_read(tp, 0x16);
+            data |= BIT_1;
+            mdio_write(tp, 0x16, data);
+        }
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+    case CFG_METHOD_26:
+        data = mac_ocp_read(tp, 0xE052);
+        data |= BIT_0;
+        mac_ocp_write(tp, 0xE052, data);
+        data = mac_ocp_read(tp, 0xE056);
+        data &= 0xFF0F;
+        data |= (BIT_4 | BIT_5 | BIT_6);
+        mac_ocp_write(tp, 0xE056, data);
+
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0A43);
+        data = mdio_read(tp, 0x10);
+        if (data & BIT_10) {
+            mdio_write(tp, 0x1F, 0x0A42);
+            data = mdio_read(tp, 0x16);
+            data &= ~(BIT_1);
+            mdio_write(tp, 0x16, data);
+        } else {
+            mdio_write(tp, 0x1F, 0x0A42);
+            data = mdio_read(tp, 0x16);
+            data |= BIT_1;
+            mdio_write(tp, 0x16, data);
+        }
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        data = mac_ocp_read(tp, 0xE052);
+        data |= BIT_0;
+        mac_ocp_write(tp, 0xE052, data);
+        data = mac_ocp_read(tp, 0xE056);
+        data &= 0xFF0F;
+        data |= (BIT_4 | BIT_5 | BIT_6);
+        mac_ocp_write(tp, 0xE056, data);
+        break;
     }
-    
+
     return ret;
 }
 
@@ -3469,151 +3660,153 @@ static int rtl8168_disable_EEE(struct rtl8168_private *tp)
     void __iomem *ioaddr = tp->mmio_addr;
     int ret;
     u16 data;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     ret = 0;
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0007);
+        mdio_write(tp, 0x1E, 0x0020);
+        data = mdio_read(tp, 0x15) & ~0x0100;
+        mdio_write(tp, 0x15, data);
+        mdio_write(tp, 0x1F, 0x0006);
+        mdio_write(tp, 0x00, 0x5A00);
+        mdio_write(tp, 0x1F, 0x0000);
+        mdio_write(tp, 0x0D, 0x0007);
+        mdio_write(tp, 0x0E, 0x003C);
+        mdio_write(tp, 0x0D, 0x4007);
+        mdio_write(tp, 0x0E, 0x0000);
+        mdio_write(tp, 0x0D, 0x0000);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        if (RTL_R8(Config4) & 0x40) {
+            data = RTL_R16(CustomLED);
             spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0007);
-            mdio_write(tp, 0x1E, 0x0020);
-            data = mdio_read(tp, 0x15) & ~0x0100;
-            mdio_write(tp, 0x15, data);
-            mdio_write(tp, 0x1F, 0x0006);
-            mdio_write(tp, 0x00, 0x5A00);
-            mdio_write(tp, 0x1F, 0x0000);
-            mdio_write(tp, 0x0D, 0x0007);
-            mdio_write(tp, 0x0E, 0x003C);
-            mdio_write(tp, 0x0D, 0x4007);
-            mdio_write(tp, 0x0E, 0x0000);
-            mdio_write(tp, 0x0D, 0x0000);
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            if (RTL_R8(Config4) & 0x40) {
-                data = RTL_R16(CustomLED);
-                spin_lock_irqsave(&tp->phy_lock, flags);
-                mdio_write(tp, 0x1F, 0x0005);
-                mdio_write(tp, 0x05, 0x8B82);
-                data = mdio_read(tp, 0x06) & ~0x0010;
-                mdio_write(tp, 0x05, 0x8B82);
-                mdio_write(tp, 0x06, data);
-                mdio_write(tp, 0x1F, 0x0000);
-                spin_unlock_irqrestore(&tp->phy_lock, flags);
-            }
-            break;
-            
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC)& ~0x0003;
-            rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
             mdio_write(tp, 0x1F, 0x0005);
-            mdio_write(tp, 0x05, 0x8B85);
-            data = mdio_read(tp, 0x06) & ~0x2000;
+            mdio_write(tp, 0x05, 0x8B82);
+            data = mdio_read(tp, 0x06) & ~0x0010;
+            mdio_write(tp, 0x05, 0x8B82);
             mdio_write(tp, 0x06, data);
-            mdio_write(tp, 0x1F, 0x0004);
-            mdio_write(tp, 0x1F, 0x0007);
-            mdio_write(tp, 0x1E, 0x0020);
-            data = mdio_read(tp, 0x15) & ~0x0100;
-            mdio_write(tp,0x15 , data);
-            mdio_write(tp, 0x1F, 0x0002);
-            mdio_write(tp, 0x1F, 0x0000);
-            mdio_write(tp, 0x0D, 0x0007);
-            mdio_write(tp, 0x0E, 0x003C);
-            mdio_write(tp, 0x0D, 0x4007);
-            mdio_write(tp, 0x0E, 0x0000);
-            mdio_write(tp, 0x0D, 0x0000);
             mdio_write(tp, 0x1F, 0x0000);
             spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC);
-            data &= ~(BIT_1 | BIT_0);
-            rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
-            mdio_write(tp, 0x1F, 0x0005);
-            mdio_write(tp, 0x05, 0x8B85);
-            data = mdio_read(tp, 0x06);
-            data &= ~BIT_13;
-            mdio_write(tp, 0x06, data);
-            mdio_write(tp, 0x1F, 0x0007);
-            mdio_write(tp, 0x1e, 0x0020);
-            data = mdio_read(tp, 0x15);
-            data &= ~BIT_8;
-            mdio_write(tp, 0x15, data);
-            mdio_write(tp, 0x1F, 0x0000);
-            mdio_write(tp, 0x0D, 0x0007);
-            mdio_write(tp, 0x0E, 0x003C);
-            mdio_write(tp, 0x0D, 0x4007);
-            mdio_write(tp, 0x0E, 0x0000);
-            mdio_write(tp, 0x0D, 0x0000);
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            data = rtl8168_eri_read(ioaddr, 0x1B0, 4, ERIAR_ExGMAC);
-            data &= ~(BIT_1 | BIT_0);
-            rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
-            mdio_write(tp, 0x1F, 0x0A43);
-            data = mdio_read(tp, 0x11);
-            mdio_write(tp, 0x11, data & ~BIT_4);
-            mdio_write(tp, 0x1F, 0x0A5D);
-            mdio_write(tp, 0x10, 0x0000);
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        default:
-            //      dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support EEE\n");
-            ret = -EOPNOTSUPP;
-            break;
+        }
+        break;
+
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC)& ~0x0003;
+        rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
+        mdio_write(tp, 0x1F, 0x0005);
+        mdio_write(tp, 0x05, 0x8B85);
+        data = mdio_read(tp, 0x06) & ~0x2000;
+        mdio_write(tp, 0x06, data);
+        mdio_write(tp, 0x1F, 0x0004);
+        mdio_write(tp, 0x1F, 0x0007);
+        mdio_write(tp, 0x1E, 0x0020);
+        data = mdio_read(tp, 0x15) & ~0x0100;
+        mdio_write(tp,0x15 , data);
+        mdio_write(tp, 0x1F, 0x0002);
+        mdio_write(tp, 0x1F, 0x0000);
+        mdio_write(tp, 0x0D, 0x0007);
+        mdio_write(tp, 0x0E, 0x003C);
+        mdio_write(tp, 0x0D, 0x4007);
+        mdio_write(tp, 0x0E, 0x0000);
+        mdio_write(tp, 0x0D, 0x0000);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        data = rtl8168_eri_read(ioaddr,0x1B0 ,4,ERIAR_ExGMAC);
+        data &= ~(BIT_1 | BIT_0);
+        rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
+        mdio_write(tp, 0x1F, 0x0005);
+        mdio_write(tp, 0x05, 0x8B85);
+        data = mdio_read(tp, 0x06);
+        data &= ~BIT_13;
+        mdio_write(tp, 0x06, data);
+        mdio_write(tp, 0x1F, 0x0007);
+        mdio_write(tp, 0x1e, 0x0020);
+        data = mdio_read(tp, 0x15);
+        data &= ~BIT_8;
+        mdio_write(tp, 0x15, data);
+        mdio_write(tp, 0x1F, 0x0000);
+        mdio_write(tp, 0x0D, 0x0007);
+        mdio_write(tp, 0x0E, 0x003C);
+        mdio_write(tp, 0x0D, 0x4007);
+        mdio_write(tp, 0x0E, 0x0000);
+        mdio_write(tp, 0x0D, 0x0000);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        data = rtl8168_eri_read(ioaddr, 0x1B0, 4, ERIAR_ExGMAC);
+        data &= ~(BIT_1 | BIT_0);
+        rtl8168_eri_write(ioaddr, 0x1B0, 4, data, ERIAR_ExGMAC);
+        mdio_write(tp, 0x1F, 0x0A43);
+        data = mdio_read(tp, 0x11);
+        mdio_write(tp, 0x11, data & ~BIT_4);
+        mdio_write(tp, 0x1F, 0x0A5D);
+        mdio_write(tp, 0x10, 0x0000);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    default:
+//      dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support EEE\n");
+        ret = -EOPNOTSUPP;
+        break;
     }
-    
+
     /*Advanced EEE*/
     switch (tp->mcfg) {
-        case CFG_METHOD_25:
-            rtl8168_eri_write(ioaddr, 0x1EA, 1, 0x00, ERIAR_ExGMAC);
-            
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0A42);
-            data = mdio_read(tp, 0x16);
-            data &= ~(BIT_1);
-            mdio_write(tp, 0x16, data);
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-        case CFG_METHOD_26:
-            data = mac_ocp_read(tp, 0xE052);
-            data &= ~(BIT_0);
-            mac_ocp_write(tp, 0xE052, data);
-            
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0A42);
-            data = mdio_read(tp, 0x16);
-            data &= ~(BIT_1);
-            mdio_write(tp, 0x16, data);
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-        case CFG_METHOD_27:
-            data = mac_ocp_read(tp, 0xE052);
-            data &= ~(BIT_0);
-            mac_ocp_write(tp, 0xE052, data);
-            break;
+    case CFG_METHOD_25:
+        rtl8168_eri_write(ioaddr, 0x1EA, 1, 0x00, ERIAR_ExGMAC);
+
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0A42);
+        data = mdio_read(tp, 0x16);
+        data &= ~(BIT_1);
+        mdio_write(tp, 0x16, data);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+    case CFG_METHOD_26:
+        data = mac_ocp_read(tp, 0xE052);
+        data &= ~(BIT_0);
+        mac_ocp_write(tp, 0xE052, data);
+
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0A42);
+        data = mdio_read(tp, 0x16);
+        data &= ~(BIT_1);
+        mdio_write(tp, 0x16, data);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        data = mac_ocp_read(tp, 0xE052);
+        data &= ~(BIT_0);
+        mac_ocp_write(tp, 0xE052, data);
+        break;
     }
-    
+
     return ret;
 }
 
@@ -3623,66 +3816,67 @@ static int rtl8168_enable_green_feature(struct rtl8168_private *tp)
 {
     u16 gphy_val;
     unsigned long flags;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0003);
-            gphy_val = mdio_read(tp, 0x10) | 0x0400;
-            mdio_write(tp, 0x10, gphy_val);
-            gphy_val = mdio_read(tp, 0x19) | 0x0001;
-            mdio_write(tp, 0x19, gphy_val);
-            mdio_write(tp, 0x1F, 0x0005);
-            gphy_val = mdio_read(tp, 0x01) & ~0x0100;
-            mdio_write(tp, 0x01, gphy_val);
-            mdio_write(tp, 0x1F, 0x0000);
-            mdio_write(tp, 0x00, 0x9200);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            mdelay(20);
-            break;
-            
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1f, 0x0003);
-            gphy_val = mdio_read(tp, 0x10);
-            gphy_val |= BIT_10;
-            mdio_write(tp, 0x10, gphy_val);
-            gphy_val = mdio_read(tp, 0x19);
-            gphy_val |= BIT_0;
-            mdio_write(tp, 0x19, gphy_val);
-            mdio_write(tp, 0x1F, 0x0005);
-            gphy_val = mdio_read(tp, 0x01);
-            gphy_val |= BIT_8;
-            mdio_write(tp, 0x01, gphy_val);
-            mdio_write(tp, 0x1f, 0x0000);
-            mdio_write(tp, 0x00, 0x9200);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x13, 0x8011);
-            gphy_val = mdio_read(tp, 0x14) | BIT_14;
-            mdio_write(tp, 0x14, gphy_val);
-            mdio_write(tp, 0x1F, 0x0A40);
-            mdio_write(tp, 0x00, 0x9200);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        default:
-            dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support Green Feature\n");
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0003);
+        gphy_val = mdio_read(tp, 0x10) | 0x0400;
+        mdio_write(tp, 0x10, gphy_val);
+        gphy_val = mdio_read(tp, 0x19) | 0x0001;
+        mdio_write(tp, 0x19, gphy_val);
+        mdio_write(tp, 0x1F, 0x0005);
+        gphy_val = mdio_read(tp, 0x01) & ~0x0100;
+        mdio_write(tp, 0x01, gphy_val);
+        mdio_write(tp, 0x1F, 0x0000);
+        mdio_write(tp, 0x00, 0x9200);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        mdelay(20);
+        break;
+
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1f, 0x0003);
+        gphy_val = mdio_read(tp, 0x10);
+        gphy_val |= BIT_10;
+        mdio_write(tp, 0x10, gphy_val);
+        gphy_val = mdio_read(tp, 0x19);
+        gphy_val |= BIT_0;
+        mdio_write(tp, 0x19, gphy_val);
+        mdio_write(tp, 0x1F, 0x0005);
+        gphy_val = mdio_read(tp, 0x01);
+        gphy_val |= BIT_8;
+        mdio_write(tp, 0x01, gphy_val);
+        mdio_write(tp, 0x1f, 0x0000);
+        mdio_write(tp, 0x00, 0x9200);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0A43);
+        mdio_write(tp, 0x13, 0x8011);
+        gphy_val = mdio_read(tp, 0x14) | BIT_14;
+        mdio_write(tp, 0x14, gphy_val);
+        mdio_write(tp, 0x1F, 0x0A40);
+        mdio_write(tp, 0x00, 0x9200);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    default:
+        dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support Green Feature\n");
+        break;
     }
-    
+
     return 0;
 }
 
@@ -3690,203 +3884,244 @@ static int rtl8168_disable_green_feature(struct rtl8168_private *tp)
 {
     u16 gphy_val;
     unsigned long flags;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0005);
-            gphy_val = mdio_read(tp, 0x01) | 0x0100;
-            mdio_write(tp, 0x01, gphy_val);
-            mdio_write(tp, 0x1F, 0x0003);
-            gphy_val = mdio_read(tp, 0x10) & ~0x0400;
-            mdio_write(tp, 0x10, gphy_val);
-            gphy_val = mdio_read(tp, 0x19) & ~0x0001;
-            mdio_write(tp, 0x19, gphy_val);
-            mdio_write(tp, 0x1F, 0x0002);
-            gphy_val = mdio_read(tp, 0x06) & ~0x7000;
-            gphy_val |= 0x3000;
-            mdio_write(tp, 0x06, gphy_val);
-            gphy_val = mdio_read(tp, 0x0D) & 0x0700;
-            gphy_val |= 0x0500;
-            mdio_write(tp, 0x0D, gphy_val);
-            mdio_write(tp, 0x1F, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1f, 0x0003);
-            gphy_val = mdio_read(tp, 0x19);
-            gphy_val &= ~BIT_0;
-            mdio_write(tp, 0x19, gphy_val);
-            gphy_val = mdio_read(tp, 0x10);
-            gphy_val &= ~BIT_10;
-            mdio_write(tp, 0x10, gphy_val);
-            mdio_write(tp, 0x1f, 0x0000);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x13, 0x8011);
-            gphy_val = mdio_read(tp, 0x14) & ~BIT_14;
-            mdio_write(tp, 0x14, gphy_val);
-            mdio_write(tp, 0x1F, 0x0A40);
-            mdio_write(tp, 0x00, 0x9200);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        default:
-            dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support Green Feature\n");
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0005);
+        gphy_val = mdio_read(tp, 0x01) | 0x0100;
+        mdio_write(tp, 0x01, gphy_val);
+        mdio_write(tp, 0x1F, 0x0003);
+        gphy_val = mdio_read(tp, 0x10) & ~0x0400;
+        mdio_write(tp, 0x10, gphy_val);
+        gphy_val = mdio_read(tp, 0x19) & ~0x0001;
+        mdio_write(tp, 0x19, gphy_val);
+        mdio_write(tp, 0x1F, 0x0002);
+        gphy_val = mdio_read(tp, 0x06) & ~0x7000;
+        gphy_val |= 0x3000;
+        mdio_write(tp, 0x06, gphy_val);
+        gphy_val = mdio_read(tp, 0x0D) & 0x0700;
+        gphy_val |= 0x0500;
+        mdio_write(tp, 0x0D, gphy_val);
+        mdio_write(tp, 0x1F, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1f, 0x0003);
+        gphy_val = mdio_read(tp, 0x19);
+        gphy_val &= ~BIT_0;
+        mdio_write(tp, 0x19, gphy_val);
+        gphy_val = mdio_read(tp, 0x10);
+        gphy_val &= ~BIT_10;
+        mdio_write(tp, 0x10, gphy_val);
+        mdio_write(tp, 0x1f, 0x0000);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0A43);
+        mdio_write(tp, 0x13, 0x8011);
+        gphy_val = mdio_read(tp, 0x14) & ~BIT_14;
+        mdio_write(tp, 0x14, gphy_val);
+        mdio_write(tp, 0x1F, 0x0A40);
+        mdio_write(tp, 0x00, 0x9200);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    default:
+        dev_printk(KERN_DEBUG, &tp->pci_dev->dev, "Not Support Green Feature\n");
+        break;
     }
-    
+
     return 0;
 }
 
 #endif
 
-void rtl8168_get_mac_version(struct rtl8168_private *tp, void __iomem *ioaddr)
+static void rtl8168_get_mac_version(struct rtl8168_private *tp, void __iomem *ioaddr)
 {
     u32 reg,val32;
     u32 ICVerID;
-    
+
     val32 = RTL_R32(TxConfig)  ;
     reg = val32 & 0x7c800000;
     ICVerID = val32 & 0x00700000;
-    
+
     switch (reg) {
-        case 0x30000000:
-            tp->mcfg = CFG_METHOD_1;
-            tp->efuse = EFUSE_NOT_SUPPORT;
-            break;
-        case 0x38000000:
-            if (ICVerID == 0x00000000) {
-                tp->mcfg = CFG_METHOD_2;
-            } else if (ICVerID == 0x00500000) {
-                tp->mcfg = CFG_METHOD_3;
-            } else {
-                tp->mcfg = CFG_METHOD_3;
-            }
-            tp->efuse = EFUSE_NOT_SUPPORT;
-            break;
-        case 0x3C000000:
-            if (ICVerID == 0x00000000) {
-                tp->mcfg = CFG_METHOD_4;
-            } else if (ICVerID == 0x00200000) {
-                tp->mcfg = CFG_METHOD_5;
-            } else if (ICVerID == 0x00400000) {
-                tp->mcfg = CFG_METHOD_6;
-            } else {
-                tp->mcfg = CFG_METHOD_6;
-            }
-            tp->efuse = EFUSE_NOT_SUPPORT;
-            break;
-        case 0x3C800000:
-            if (ICVerID == 0x00100000) {
-                tp->mcfg = CFG_METHOD_7;
-            } else if (ICVerID == 0x00300000) {
-                tp->mcfg = CFG_METHOD_8;
-            } else {
-                tp->mcfg = CFG_METHOD_8;
-            }
-            tp->efuse = EFUSE_NOT_SUPPORT;
-            break;
-        case 0x28000000:
-            if (ICVerID == 0x00100000) {
-                tp->mcfg = CFG_METHOD_9;
-            } else if (ICVerID == 0x00300000) {
-                tp->mcfg = CFG_METHOD_10;
-            } else {
-                tp->mcfg = CFG_METHOD_10;
-            }
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x28800000:
-            if (ICVerID == 0x00000000) {
-                tp->mcfg = CFG_METHOD_11;
-            } else if (ICVerID == 0x00200000) {
-                tp->mcfg = CFG_METHOD_12;
-                RTL_W32(0xD0, RTL_R32(0xD0) | 0x00020000);
-            } else {// if (ICVerID == 0x00300000)
-                tp->mcfg = CFG_METHOD_13;
-            }
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x2C000000:
-            if (ICVerID == 0x00100000)
-                tp->mcfg = CFG_METHOD_14;
-            else if (ICVerID == 0x00200000)
-                tp->mcfg = CFG_METHOD_15;
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x2C800000:
-            if (ICVerID == 0x00000000)
-                tp->mcfg = CFG_METHOD_16;
-            else if (ICVerID == 0x00100000)
-                tp->mcfg = CFG_METHOD_17;
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x48000000:
-            if (ICVerID == 0x00000000)
-                tp->mcfg = CFG_METHOD_18;
-            else if (ICVerID == 0x00100000)
-                tp->mcfg = CFG_METHOD_19;
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x48800000:
+    case 0x30000000:
+        tp->mcfg = CFG_METHOD_1;
+        tp->efuse = EFUSE_NOT_SUPPORT;
+        break;
+    case 0x38000000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_2;
+        } else if (ICVerID == 0x00500000) {
+            tp->mcfg = CFG_METHOD_3;
+        } else {
+            tp->mcfg = CFG_METHOD_3;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_NOT_SUPPORT;
+        break;
+    case 0x3C000000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_4;
+        } else if (ICVerID == 0x00200000) {
+            tp->mcfg = CFG_METHOD_5;
+        } else if (ICVerID == 0x00400000) {
+            tp->mcfg = CFG_METHOD_6;
+        } else {
+            tp->mcfg = CFG_METHOD_6;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_NOT_SUPPORT;
+        break;
+    case 0x3C800000:
+        if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_7;
+        } else if (ICVerID == 0x00300000) {
+            tp->mcfg = CFG_METHOD_8;
+        } else {
+            tp->mcfg = CFG_METHOD_8;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_NOT_SUPPORT;
+        break;
+    case 0x28000000:
+        if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_9;
+        } else if (ICVerID == 0x00300000) {
+            tp->mcfg = CFG_METHOD_10;
+        } else {
+            tp->mcfg = CFG_METHOD_10;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x28800000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_11;
+        } else if (ICVerID == 0x00200000) {
+            tp->mcfg = CFG_METHOD_12;
+            RTL_W32(0xD0, RTL_R32(0xD0) | 0x00020000);
+        } else if (ICVerID == 0x00300000) {
+            tp->mcfg = CFG_METHOD_13;
+        } else {
+            tp->mcfg = CFG_METHOD_13;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x2C000000:
+        if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_14;
+        } else if (ICVerID == 0x00200000) {
+            tp->mcfg = CFG_METHOD_15;
+        } else {
+            tp->mcfg = CFG_METHOD_15;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x2C800000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_16;
+        } else if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_17;
+        } else {
+            tp->mcfg = CFG_METHOD_17;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x48000000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_18;
+        } else if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_19;
+        } else {
+            tp->mcfg = CFG_METHOD_19;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x48800000:
+        if (ICVerID == 0x00000000) {
             tp->mcfg = CFG_METHOD_20;
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x4C000000:
-            if (ICVerID == 0x00000000)
-                tp->mcfg = CFG_METHOD_21;
-            else if (ICVerID == 0x00100000)
-                tp->mcfg = CFG_METHOD_22;
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x50000000:
-            if (ICVerID == 0x00000000) {
-                tp->mcfg = CFG_METHOD_23;
-            } else if (ICVerID == 0x00100000) {
-                tp->mcfg = CFG_METHOD_27;
-            } else {
-                tp->mcfg = CFG_METHOD_27;
-            }
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x50800000:
-            if (ICVerID == 0x00000000) {
-                tp->mcfg = CFG_METHOD_24;
-            } else if (ICVerID == 0x00100000) {
-                tp->mcfg = CFG_METHOD_25;
-            } else {
-                tp->mcfg = CFG_METHOD_25;
-            }
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        case 0x5C800000:
+        } else {
+            tp->mcfg = CFG_METHOD_20;
+            tp->HwIcVerUnknown = TRUE;
+        }
+
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x4C000000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_21;
+        } else if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_22;
+        } else {
+            tp->mcfg = CFG_METHOD_22;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x50000000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_23;
+        } else if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_27;
+        } else if (ICVerID == 0x00200000) {
+            tp->mcfg = CFG_METHOD_28;
+        } else {
+            tp->mcfg = CFG_METHOD_28;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x50800000:
+        if (ICVerID == 0x00000000) {
+            tp->mcfg = CFG_METHOD_24;
+        } else if (ICVerID == 0x00100000) {
+            tp->mcfg = CFG_METHOD_25;
+        } else {
+            tp->mcfg = CFG_METHOD_25;
+            tp->HwIcVerUnknown = TRUE;
+        }
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    case 0x5C800000:
+        if (ICVerID == 0x00000000) {
             tp->mcfg = CFG_METHOD_26;
-            tp->efuse = EFUSE_SUPPORT;
-            break;
-        default:
-            printk("unknown chip version (%x)\n",reg);
-            tp->mcfg = CFG_METHOD_DEFAULT;
-            tp->efuse = EFUSE_NOT_SUPPORT;
-            break;
+        } else {
+            tp->mcfg = CFG_METHOD_26;
+            tp->HwIcVerUnknown = TRUE;
+        }
+
+        tp->efuse = EFUSE_SUPPORT;
+        break;
+    default:
+        printk("unknown chip version (%x)\n",reg);
+        tp->mcfg = CFG_METHOD_DEFAULT;
+        tp->HwIcVerUnknown = TRUE;
+        tp->efuse = EFUSE_NOT_SUPPORT;
+        break;
     }
 }
 
-void
+static void
 rtl8168_print_mac_version(struct rtl8168_private *tp)
 {
     int i;
@@ -3897,7 +4132,7 @@ rtl8168_print_mac_version(struct rtl8168_private *tp)
             return;
         }
     }
-    
+
     dprintk("mac_version == Unknown\n");
 }
 
@@ -3906,38 +4141,36 @@ static u8 rtl8168_efuse_read(struct rtl8168_private *tp, u16 reg)
     void __iomem *ioaddr = tp->mmio_addr;
     u8 efuse_data;
     u32 temp;
-    int cnt = 0;
-    
+    int cnt;
+
     if (tp->efuse == EFUSE_NOT_SUPPORT)
         return EFUSE_READ_FAIL;
-    
+
     temp = EFUSE_READ | ((reg & EFUSE_Reg_Mask) << EFUSE_Reg_Shift);
     RTL_W32(EFUSEAR, temp);
-    
+
     do {
         udelay(100);
         temp = RTL_R32(EFUSEAR);
         cnt++;
     } while (!(temp & EFUSE_READ_OK) && (temp < EFUSE_Check_Cnt));
-    
+
     if (temp == EFUSE_Check_Cnt)
         efuse_data = EFUSE_READ_FAIL;
     else
         efuse_data = (u8)(RTL_R32(EFUSEAR) & EFUSE_Data_Mask);
-    
+
     return efuse_data;
 }
-
-#if DISABLED_CODE
 
 static void
 rtl8168_tally_counter_addr_fill(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     if (!tp->tally_paddr)
         return;
-    
+
     RTL_W32(CounterAddrHigh, (u64)tp->tally_paddr >> 32);
     RTL_W32(CounterAddrLow, (u64)tp->tally_paddr & (DMA_BIT_MASK(32)));
 }
@@ -3946,64 +4179,72 @@ static void
 rtl8168_tally_counter_clear(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     if (tp->mcfg == CFG_METHOD_1 || tp->mcfg == CFG_METHOD_2 ||
         tp->mcfg == CFG_METHOD_3 )
         return;
-    
+
     if (!tp->tally_paddr)
         return;
-    
+
     RTL_W32(CounterAddrHigh, (u64)tp->tally_paddr >> 32);
     RTL_W32(CounterAddrLow, (u64)tp->tally_paddr & (DMA_BIT_MASK(32) | BIT_0));
 }
-#endif /* DISABLED_CODE */
 
-void rtl8168_exit_oob(struct net_device *dev)
+static void
+rtl8168_exit_oob(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     u16 data16;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (tp->DASH) {
+            rtl8168_driver_stop(tp);
             rtl8168_driver_start(tp);
-            break;
+#ifdef ENABLE_DASH_SUPPORT
+            DashHwInit(dev);
+#endif
+        }
+        break;
     }
-    
+
     rtl8168_nic_reset(dev);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_20:
-            rtl8168_wait_ll_share_fifo_ready(dev);
-            
-            data16 = mac_ocp_read(tp, 0xD4DE) | BIT_15;
-            mac_ocp_write(tp, 0xD4DE, data16);
-            
-            rtl8168_wait_ll_share_fifo_ready(dev);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            RTL_W8(MCUCmd_reg, RTL_R8(MCUCmd_reg) & ~Now_is_oob);
-            
-            data16 = mac_ocp_read(tp, 0xE8DE) & ~BIT_14;
-            mac_ocp_write(tp, 0xE8DE, data16);
-            rtl8168_wait_ll_share_fifo_ready(dev);
-            
-            data16 = mac_ocp_read(tp, 0xE8DE) | BIT_15;
-            mac_ocp_write(tp, 0xE8DE, data16);
-            
-            rtl8168_wait_ll_share_fifo_ready(dev);
-            break;
+    case CFG_METHOD_20:
+        rtl8168_wait_ll_share_fifo_ready(dev);
+
+        data16 = mac_ocp_read(tp, 0xD4DE) | BIT_15;
+        mac_ocp_write(tp, 0xD4DE, data16);
+
+        rtl8168_wait_ll_share_fifo_ready(dev);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        RTL_W8(MCUCmd_reg, RTL_R8(MCUCmd_reg) & ~Now_is_oob);
+
+        data16 = mac_ocp_read(tp, 0xE8DE) & ~BIT_14;
+        mac_ocp_write(tp, 0xE8DE, data16);
+        rtl8168_wait_ll_share_fifo_ready(dev);
+
+        data16 = mac_ocp_read(tp, 0xE8DE) | BIT_15;
+        mac_ocp_write(tp, 0xE8DE, data16);
+
+        rtl8168_wait_ll_share_fifo_ready(dev);
+        break;
     }
 }
 
@@ -4012,8 +4253,10 @@ rtl8168_hw_mac_mcu_config(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned int i;
-    
-    
+
+
+    if (tp->NotWrMcuPatchCode == TRUE) return;
+
     if (tp->mcfg == CFG_METHOD_21) {
         u16 rtl8111g_phy_value[]= {
             0xE008, 0xE01B, 0xE01D, 0xE01F, 0xE022,
@@ -4250,90 +4493,96 @@ rtl8168_hw_mac_mcu_config(struct net_device *dev)
     }
 }
 
-void rtl8168_hw_init(struct net_device *dev)
+static void
+rtl8168_hw_init(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            RTL_W8(Cfg9346, Cfg9346_Unlock);
-            RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
-            RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
-            RTL_W8(Cfg9346, Cfg9346_Lock);
-            RTL_W8(0xF1, RTL_R8(0xF1) & ~BIT_7);
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        RTL_W8(Cfg9346, Cfg9346_Unlock);
+        RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
+        RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
+        RTL_W8(Cfg9346, Cfg9346_Lock);
+        RTL_W8(0xF1, RTL_R8(0xF1) & ~BIT_7);
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-            RTL_W8(DBG_reg, RTL_R8(DBG_reg) | BIT_1 | BIT_7);
-            break;
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+        RTL_W8(DBG_reg, RTL_R8(DBG_reg) | BIT_1 | BIT_7);
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-            RTL_W8(0xF2, (RTL_R8(0xF2) % ~(BIT_2 | BIT_1 | BIT_0)));
-            break;
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+        RTL_W8(0xF2, (RTL_R8(0xF2) % ~(BIT_2 | BIT_1 | BIT_0)));
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-            if (dev->aspm) {
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+        if (aspm) {
+            RTL_W8(0x6E, RTL_R8(0x6E) | BIT_6);
+            rtl8168_eri_write(ioaddr, 0x1AE, 2, 0x0403, ERIAR_ExGMAC);
+        }
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+        if (aspm) {
+            if (RTL_R8(Config5) & BIT_3) {
                 RTL_W8(0x6E, RTL_R8(0x6E) | BIT_6);
                 rtl8168_eri_write(ioaddr, 0x1AE, 2, 0x0403, ERIAR_ExGMAC);
             }
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-            if (dev->aspm) {
-                if (RTL_R8(Config5) & BIT_3) {
-                    RTL_W8(0x6E, RTL_R8(0x6E) | BIT_6);
-                    rtl8168_eri_write(ioaddr, 0x1AE, 2, 0x0403, ERIAR_ExGMAC);
-                    
-                }
-            }
-            break;
+        }
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-            rtl8168_eri_write(ioaddr, 0x174, 2, 0x0000, ERIAR_ExGMAC);
-            mac_ocp_write(tp, 0xE428, 0x0010);
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+        rtl8168_eri_write(ioaddr, 0x174, 2, 0x0000, ERIAR_ExGMAC);
+        mac_ocp_write(tp, 0xE428, 0x0010);
+        break;
+    case CFG_METHOD_28:
+        rtl8168_eri_write(ioaddr, 0x174, 2, 0x00FF, ERIAR_ExGMAC);
+        mac_ocp_write(tp, 0xE428, 0x0010);
+        break;
     }
-    
+
     if (tp->mcfg == CFG_METHOD_10 || tp->mcfg == CFG_METHOD_14 || tp->mcfg == CFG_METHOD_15)
         RTL_W8(0xF3, RTL_R8(0xF3) | BIT_2);
-    
-    
+
+
     rtl8168_hw_mac_mcu_config(dev);
-    
+
     /*disable ocp phy power saving*/
-    if (tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 || tp->mcfg == CFG_METHOD_27) {
+    if (tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
+        tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
         spin_lock_irqsave(&tp->phy_lock, flags);
         mdio_write(tp, 0x1F, 0x0C41);
         mdio_write(tp, 0x13, 0x0000);
@@ -4343,13 +4592,14 @@ void rtl8168_hw_init(struct net_device *dev)
     }
 }
 
-void rtl8168_hw_ephy_config(struct net_device *dev)
+static void
+rtl8168_hw_ephy_config(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     u16 ephy_data;
-    
-    
+
+
     if (tp->mcfg == CFG_METHOD_4) {
         /*Set EPHY registers    begin*/
         /*Set EPHY register offset 0x02 bit 11 to 0 and bit 12 to 1*/
@@ -4357,12 +4607,12 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         ephy_data &= ~BIT_11;
         ephy_data |= BIT_12;
         rtl8168_ephy_write(ioaddr, 0x02, ephy_data);
-        
+
         /*Set EPHY register offset 0x03 bit 1 to 1*/
         ephy_data = rtl8168_ephy_read(ioaddr, 0x03);
         ephy_data |= (1 << 1);
         rtl8168_ephy_write(ioaddr, 0x03, ephy_data);
-        
+
         /*Set EPHY register offset 0x06 bit 7 to 0*/
         ephy_data = rtl8168_ephy_read(ioaddr, 0x06);
         ephy_data &= ~(1 << 7);
@@ -4374,7 +4624,7 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         ephy_data = rtl8168_ephy_read(ioaddr, 0x01);
         ephy_data |= (1 << 0);
         rtl8168_ephy_write(ioaddr, 0x01, ephy_data);
-        
+
         /*Set EPHY register offset 0x03 bit 10 to 0, bit 9 to 1 and bit 5 to 1.*/
         ephy_data = rtl8168_ephy_read(ioaddr, 0x03);
         ephy_data &= ~(1 << 10);
@@ -4411,49 +4661,49 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         ephy_data = rtl8168_ephy_read(ioaddr, 0x00) & ~0x0200;
         ephy_data |= 0x0100;
         rtl8168_ephy_write(ioaddr, 0x00, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x00);
         ephy_data |= 0x0004;
         rtl8168_ephy_write(ioaddr, 0x00, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x06) & ~0x0002;
         ephy_data |= 0x0001;
         rtl8168_ephy_write(ioaddr, 0x06, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x06);
         ephy_data |= 0x0030;
         rtl8168_ephy_write(ioaddr, 0x06, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x07);
         ephy_data |= 0x2000;
         rtl8168_ephy_write(ioaddr, 0x07, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x00);
         ephy_data |= 0x0020;
         rtl8168_ephy_write(ioaddr, 0x00, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x03) & ~0x5800;
         ephy_data |= 0x2000;
         rtl8168_ephy_write(ioaddr, 0x03, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x03);
         ephy_data |= 0x0001;
         rtl8168_ephy_write(ioaddr, 0x03, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x01) & ~0x0800;
         ephy_data |= 0x1000;
         rtl8168_ephy_write(ioaddr, 0x01, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x07);
         ephy_data |= 0x4000;
         rtl8168_ephy_write(ioaddr, 0x07, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x1E);
         ephy_data |= 0x2000;
         rtl8168_ephy_write(ioaddr, 0x1E, ephy_data);
-        
+
         rtl8168_ephy_write(ioaddr, 0x19, 0xFE6C);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x0A);
         ephy_data |= 0x0040;
         rtl8168_ephy_write(ioaddr, 0x0A, ephy_data);
@@ -4468,11 +4718,11 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
             rtl8168_ephy_write(ioaddr, 0x08, 0x0006);
             rtl8168_ephy_write(ioaddr, 0x0A, 0x00C8);
         }
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x09);
         ephy_data |= BIT_7;
         rtl8168_ephy_write(ioaddr, 0x09, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x19);
         ephy_data |= (BIT_2 | BIT_5 | BIT_9);
         rtl8168_ephy_write(ioaddr, 0x19, ephy_data);
@@ -4482,17 +4732,17 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
             ephy_data |= BIT_5;
             ephy_data &= ~(BIT_7 | BIT_6);
             rtl8168_ephy_write(ioaddr, 0x06, ephy_data);
-            
+
             ephy_data = rtl8168_ephy_read(ioaddr, 0x08);
             ephy_data |= BIT_1;
             ephy_data &= ~BIT_0;
             rtl8168_ephy_write(ioaddr, 0x08, ephy_data);
         }
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x09);
         ephy_data |= BIT_7;
         rtl8168_ephy_write(ioaddr, 0x09, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x19);
         ephy_data |= (BIT_2 | BIT_5 | BIT_9);
         rtl8168_ephy_write(ioaddr, 0x19, ephy_data);
@@ -4501,14 +4751,14 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         ephy_data |= BIT_5;
         ephy_data &= ~(BIT_7 | BIT_6);
         rtl8168_ephy_write(ioaddr, 0x06, ephy_data);
-        
+
         rtl8168_ephy_write(ioaddr, 0x0f, 0x5200);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x19);
         ephy_data |= (BIT_2 | BIT_5 | BIT_9);
         rtl8168_ephy_write(ioaddr, 0x19, ephy_data);
     } else if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22) {
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x00);
         ephy_data &= ~(BIT_3);
         rtl8168_ephy_write(ioaddr, 0x00, ephy_data);
@@ -4516,25 +4766,28 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         ephy_data &= ~(BIT_13 | BIT_12 | BIT_11 | BIT_10 | BIT_9 | BIT_8 | BIT_7 | BIT_6 | BIT_5 | BIT_4);
         ephy_data |= (BIT_5 | BIT_11);
         rtl8168_ephy_write(ioaddr, 0x0C, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x1E);
-        ephy_data &= ~(BIT_0);
+        ephy_data |= (BIT_0);
         rtl8168_ephy_write(ioaddr, 0x1E, ephy_data);
+
+        ephy_data = rtl8168_ephy_read(ioaddr, 0x19);
+        ephy_data &= ~(BIT_15);
+        rtl8168_ephy_write(ioaddr, 0x19, ephy_data);
     } else if (tp->mcfg == CFG_METHOD_25) {
         ephy_data = rtl8168_ephy_read(ioaddr, 0x00);
-        ephy_data |= BIT_3;
+        ephy_data &= ~BIT_3;
         rtl8168_ephy_write(ioaddr, 0x00, ephy_data);
         ephy_data = rtl8168_ephy_read(ioaddr, 0x0C);
-        ephy_data &= ~(BIT_13 | BIT_12 | BIT_11 | BIT_9 | BIT_8 | BIT_7 | BIT_6 | BIT_5 | BIT_4);
-        ephy_data |= BIT_10;
+        ephy_data &= ~(BIT_13 | BIT_12 | BIT_11 | BIT_10| BIT_9 | BIT_8 | BIT_7 | BIT_6 | BIT_5 | BIT_4);
+        ephy_data |= (BIT_5 | BIT_11);
         rtl8168_ephy_write(ioaddr, 0x0C, ephy_data);
-        
-        rtl8168_ephy_write(ioaddr, 0x19, 0xFC00);
+
+        rtl8168_ephy_write(ioaddr, 0x19, 0x7C00);
         rtl8168_ephy_write(ioaddr, 0x1E, 0x20EB);
-        
-        ephy_data = rtl8168_ephy_read(ioaddr, 0x06);
-        ephy_data |= BIT_4;
-        rtl8168_ephy_write(ioaddr, 0x06, ephy_data);
+        rtl8168_ephy_write(ioaddr, 0x0D, 0x1666);
+        rtl8168_ephy_write(ioaddr, 0x00, 0x10A3);
+        rtl8168_ephy_write(ioaddr, 0x06, 0xF050);
     } else if (tp->mcfg == CFG_METHOD_26) {
         ephy_data = rtl8168_ephy_read(ioaddr, 0x00);
         ephy_data |= BIT_3;
@@ -4543,17 +4796,17 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         ephy_data &= ~(BIT_13 | BIT_12 | BIT_11 | BIT_9 | BIT_8 | BIT_7 | BIT_6 | BIT_5 | BIT_4);
         ephy_data |= BIT_10;
         rtl8168_ephy_write(ioaddr, 0x0C, ephy_data);
-        
+
         rtl8168_ephy_write(ioaddr, 0x0F, 0x5200);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x19);
         ephy_data &= ~BIT_5;
         rtl8168_ephy_write(ioaddr, 0x19, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x1E);
         ephy_data |= BIT_13;
         rtl8168_ephy_write(ioaddr, 0x1E, ephy_data);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x06);
         ephy_data |= BIT_4;
         rtl8168_ephy_write(ioaddr, 0x06, ephy_data);
@@ -4562,7 +4815,7 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         rtl8168_ephy_write(ioaddr, 0x06, 0xf030);
         rtl8168_ephy_write(ioaddr, 0x08, 0x2006);
         rtl8168_ephy_write(ioaddr, 0x0D, 0x1666);
-        
+
         ephy_data = rtl8168_ephy_read(ioaddr, 0x0C);
         ephy_data &= ~(BIT_13 | BIT_12 | BIT_11 | BIT_10 | BIT_9 | BIT_8 | BIT_7 | BIT_6 | BIT_5 | BIT_4);
         rtl8168_ephy_write(ioaddr, 0x0C, ephy_data);
@@ -4574,9 +4827,18 @@ void rtl8168_hw_ephy_config(struct net_device *dev)
         ephy_data &= ~(BIT_13 | BIT_12 | BIT_11 | BIT_10 | BIT_8 | BIT_7 | BIT_6 | BIT_5 | BIT_4);
         ephy_data |= BIT_9;
         rtl8168_ephy_write(ioaddr, 0x0C, ephy_data);
-        
+
         rtl8168_ephy_write(ioaddr, 0x19, 0xFC00);
         rtl8168_ephy_write(ioaddr, 0x1E, 0x20EB);
+    } else if (tp->mcfg == CFG_METHOD_27) {
+        rtl8168_ephy_write(ioaddr, 0x00, 0x10A3);
+        rtl8168_ephy_write(ioaddr, 0x19, 0xFC00);
+        rtl8168_ephy_write(ioaddr, 0x1E, 0x20EA);
+    } else if (tp->mcfg == CFG_METHOD_28) {
+        rtl8168_ephy_write(ioaddr, 0x00, 0x10A3);
+        rtl8168_ephy_write(ioaddr, 0x19, 0x7C00);
+        rtl8168_ephy_write(ioaddr, 0x1E, 0x20EB);
+        rtl8168_ephy_write(ioaddr, 0x0D, 0x1666);
     }
 }
 
@@ -4587,76 +4849,82 @@ rtl8168_check_hw_phy_mcu_code_ver(struct net_device *dev)
     int ram_code_ver_match = 0;
     u16 sw_ram_code_ver = 0xFFFF;
     u16 hw_ram_code_ver = 0;
-    
-    
+
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_14;
-            break;
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_16;
-            break;
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_18;
-            break;
-        case CFG_METHOD_20:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_20;
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_21;
-            break;
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_23;
-            break;
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_24;
-            break;
-        case CFG_METHOD_26:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_26;
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_14;
+        break;
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_16;
+        break;
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_18;
+        break;
+    case CFG_METHOD_20:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_20;
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_21;
+        break;
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_23;
+        break;
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_24;
+        break;
+    case CFG_METHOD_26:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_26;
+        break;
+    case CFG_METHOD_28:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_28;
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            mdio_write(tp, 0x1F, 0x0005);
-            mdio_write(tp, 0x05, 0x8B60);
-            hw_ram_code_ver = mdio_read(tp, 0x06);
-            mdio_write(tp, 0x1F, 0x0000);
-            break;
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-            mdio_write(tp, 0x1F, 0x0005);
-            mdio_write(tp, 0x05, 0x8B30);
-            hw_ram_code_ver = mdio_read(tp, 0x06);
-            mdio_write(tp, 0x1F, 0x0000);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x13, 0x801E);
-            hw_ram_code_ver = mdio_read(tp, 0x14);
-            mdio_write(tp, 0x1F, 0x0000);
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        mdio_write(tp, 0x1F, 0x0005);
+        mdio_write(tp, 0x05, 0x8B60);
+        hw_ram_code_ver = mdio_read(tp, 0x06);
+        mdio_write(tp, 0x1F, 0x0000);
+        break;
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+        mdio_write(tp, 0x1F, 0x0005);
+        mdio_write(tp, 0x05, 0x8B30);
+        hw_ram_code_ver = mdio_read(tp, 0x06);
+        mdio_write(tp, 0x1F, 0x0000);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+        mdio_write(tp, 0x1F, 0x0A43);
+        mdio_write(tp, 0x13, 0x801E);
+        hw_ram_code_ver = mdio_read(tp, 0x14);
+        mdio_write(tp, 0x1F, 0x0000);
+        break;
     }
-    
-    if( hw_ram_code_ver == sw_ram_code_ver)
+
+    if( hw_ram_code_ver == sw_ram_code_ver) {
         ram_code_ver_match = 1;
-    
+        tp->HwHasWrRamCodeToMicroP = TRUE;
+    }
+
     return ram_code_ver_match;
 }
 
@@ -4665,71 +4933,75 @@ rtl8168_write_hw_phy_mcu_code_ver(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     u16 sw_ram_code_ver = 0xFFFF;
-    
-    
+
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_14;
-            break;
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_16;
-            break;
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_18;
-            break;
-        case CFG_METHOD_20:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_20;
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_21;
-            break;
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_23;
-            break;
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_24;
-            break;
-        case CFG_METHOD_26:
-            sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_26;
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_14;
+        break;
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_16;
+        break;
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_18;
+        break;
+    case CFG_METHOD_20:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_20;
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_21;
+        break;
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_23;
+        break;
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_24;
+        break;
+    case CFG_METHOD_26:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_26;
+        break;
+    case CFG_METHOD_28:
+        sw_ram_code_ver = NIC_RAMCODE_VERSION_CFG_METHOD_28;
+        break;
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            mdio_write(tp, 0x1F, 0x0005);
-            mdio_write(tp, 0x05, 0x8B60);
-            mdio_write(tp, 0x06, sw_ram_code_ver);
-            mdio_write(tp, 0x1F, 0x0000);
-            break;
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-            mdio_write(tp, 0x1F, 0x0005);
-            mdio_write(tp, 0x05, 0x8B30);
-            mdio_write(tp, 0x06, sw_ram_code_ver);
-            mdio_write(tp, 0x1F, 0x0000);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x13, 0x801E);
-            mdio_write(tp, 0x14, sw_ram_code_ver);
-            mdio_write(tp, 0x1F, 0x0000);
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        mdio_write(tp, 0x1F, 0x0005);
+        mdio_write(tp, 0x05, 0x8B60);
+        mdio_write(tp, 0x06, sw_ram_code_ver);
+        mdio_write(tp, 0x1F, 0x0000);
+        break;
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+        mdio_write(tp, 0x1F, 0x0005);
+        mdio_write(tp, 0x05, 0x8B30);
+        mdio_write(tp, 0x06, sw_ram_code_ver);
+        mdio_write(tp, 0x1F, 0x0000);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+        mdio_write(tp, 0x1F, 0x0A43);
+        mdio_write(tp, 0x13, 0x801E);
+        mdio_write(tp, 0x14, sw_ram_code_ver);
+        mdio_write(tp, 0x1F, 0x0000);
+        break;
     }
 }
 
@@ -4740,10 +5012,10 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
     struct pci_dev *pdev = tp->pci_dev;
     unsigned int gphy_val,i;
     u32 csi_tmp;
-    
-    if(rtl8168_check_hw_phy_mcu_code_ver(dev))
-        return;
-    
+
+    if (tp->NotWrRamCodeToMicroP == TRUE) return;
+    if (rtl8168_check_hw_phy_mcu_code_ver(dev)) return;
+
     if (tp->mcfg == CFG_METHOD_14) {
         mdio_write(tp, 0x1f, 0x0000);
         mdio_write(tp, 0x00, 0x1800);
@@ -6114,8 +6386,8 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
              pdev->subsystem_device == 0xc098) ||
             (pdev->subsystem_vendor == 0x144d &&
              pdev->subsystem_device == 0xc0b1)) {
-                gphy_val &= ~(BIT_2);
-            }
+            gphy_val &= ~(BIT_2);
+        }
         mdio_write(tp, 0x17, gphy_val);
         mdio_write(tp, 0x1f, 0x0007);
         mdio_write(tp, 0x1e, 0x0028);
@@ -10588,10 +10860,10 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
              pdev->subsystem_device == 0xc098) ||
             (pdev->subsystem_vendor == 0x144d &&
              pdev->subsystem_device == 0xc0b1)) {
-                gphy_val = mdio_read(tp, 0x17);
-                gphy_val &= ~BIT_2;
-                mdio_write(tp, 0x17, gphy_val);
-            }
+            gphy_val = mdio_read(tp, 0x17);
+            gphy_val &= ~BIT_2;
+            mdio_write(tp, 0x17, gphy_val);
+        }
         mdio_write(tp, 0x1f, 0x0000);
         mdio_write(tp, 0x00, 0x9200);
     } else if (tp->mcfg == CFG_METHOD_18) {
@@ -11460,14 +11732,14 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
         gphy_val |= BIT_1;
         mdio_write(tp, 0x17, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x09, 0xA20F);
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x1f, 0x0003);
         mdio_write(tp, 0x01, 0x328A);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0000);
         mdio_write(tp, 0x00, 0x9200);
     } else if (tp->mcfg == CFG_METHOD_19) {
@@ -12348,14 +12620,14 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
         gphy_val |= BIT_1;
         mdio_write(tp,0x17, gphy_val);
         mdio_write(tp,0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x09, 0xA20F);
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x1f, 0x0003);
         mdio_write(tp, 0x01, 0x328A);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp,0x1f, 0x0000);
         mdio_write(tp,0x00, 0x9200);
     } else if (tp->mcfg == CFG_METHOD_21) {
@@ -13469,7 +13741,7 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
         csi_tmp = mdio_read(tp, 0x10);
         csi_tmp |= BIT_4;
         mdio_write(tp,0x10, csi_tmp);
-        
+
         mdio_write(tp,0x1f, 0x0B80);
         i = 0;
         do {
@@ -13479,14 +13751,14 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
             udelay(50);
             i++;
         } while(csi_tmp != 0x0040 && i <1000);
-        
+
         mdio_write(tp,0x1f, 0x0A43);
         mdio_write(tp,0x13, 0x8146);
         mdio_write(tp,0x14, 0x0100);
         mdio_write(tp,0x13, 0xB82E);
         mdio_write(tp,0x14, 0x0001);
-        
-        
+
+
         mdio_write(tp,0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0xb820);
         mdio_write(tp, 0x14, 0x0290);
@@ -13512,8 +13784,8 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
         mdio_write(tp, 0x14, 0x107c);
         mdio_write(tp, 0x13, 0xb820);
         mdio_write(tp, 0x14, 0x0210);
-        
-        
+
+
         mdio_write(tp,0x1F, 0x0A43);
         mdio_write(tp,0x13, 0x0000);
         mdio_write(tp,0x14, 0x0000);
@@ -13524,57 +13796,59 @@ rtl8168_init_hw_phy_mcu(struct net_device *dev)
         mdio_write(tp,0x1f, 0x0A43);
         mdio_write(tp,0x13, 0x8146);
         mdio_write(tp,0x14, 0x0000);
-        
-        
+
+
         mdio_write(tp,0x1f, 0x0B82);
         csi_tmp = mdio_read(tp, 0x10);
         csi_tmp &= ~(BIT_4);
         mdio_write(tp,0x10, csi_tmp);
     }
-    
+
     rtl8168_write_hw_phy_mcu_code_ver(dev);
-    
+
     mdio_write(tp,0x1F, 0x0000);
+
+    tp->HwHasWrRamCodeToMicroP = TRUE;
 }
 
-void
+static void
 rtl8168_hw_phy_config(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     struct pci_dev *pdev = tp->pci_dev;
     unsigned int gphy_val,i;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     tp->phy_reset_enable(dev);
-    
+
     spin_lock_irqsave(&tp->phy_lock, flags);
-    
+
     rtl8168_init_hw_phy_mcu(dev);
-    
+
     if (tp->mcfg == CFG_METHOD_1) {
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x0B, 0x94B0);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x12, 0x6096);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x0D, 0xF8A0);
     } else if (tp->mcfg == CFG_METHOD_2) {
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x0B, 0x94B0);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x12, 0x6096);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
     } else if (tp->mcfg == CFG_METHOD_3) {
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x0B, 0x94B0);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x12, 0x6096);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
     } else if (tp->mcfg == CFG_METHOD_4) {
         mdio_write(tp, 0x1F, 0x0001);
@@ -13583,33 +13857,33 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x16, 0x000A);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x12, 0xC096);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x00, 0x88DE);
         mdio_write(tp, 0x01, 0x82B1);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x08, 0x9E30);
         mdio_write(tp, 0x09, 0x01F0);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x0A, 0x5500);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x03, 0x7002);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x0C, 0x00C8);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | (1 << 5));
         mdio_write(tp, 0x0D, mdio_read(tp, 0x0D) & ~(1 << 5));
@@ -13619,20 +13893,20 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x16, 0x0F0A);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x00, 0x88DE);
         mdio_write(tp, 0x01, 0x82B1);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x0C, 0x7EB8);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x06, 0x0761);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x03, 0x802F);
         mdio_write(tp, 0x02, 0x4F02);
@@ -13641,18 +13915,18 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x04, 0x9800);
         mdio_write(tp, 0x04, 0x9000);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x16, mdio_read(tp, 0x16) | (1 << 0));
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | (1 << 5));
         mdio_write(tp, 0x0D, mdio_read(tp, 0x0D) & ~(1 << 5));
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x1D, 0x3D98);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
         mdio_write(tp, 0x1F, 0x0000);
@@ -13662,35 +13936,35 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x16, 0x0F0A);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x00, 0x88DE);
         mdio_write(tp, 0x01, 0x82B1);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x0C, 0x7EB8);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x06, 0x5461);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x06, 0x5461);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x16, mdio_read(tp, 0x16) | (1 << 0));
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | (1 << 5));
         mdio_write(tp, 0x0D, mdio_read(tp, 0x0D) & ~(1 << 5));
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x1D, 0x3D98);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
         mdio_write(tp, 0x1F, 0x0000);
@@ -13698,69 +13972,69 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | (1 << 5));
         mdio_write(tp, 0x0D, mdio_read(tp, 0x0D) & ~(1 << 5));
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x1D, 0x3D98);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x14, 0xCAA3);
         mdio_write(tp, 0x1C, 0x000A);
         mdio_write(tp, 0x18, 0x65D0);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x17, 0xB580);
         mdio_write(tp, 0x18, 0xFF54);
         mdio_write(tp, 0x19, 0x3954);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x0D, 0x310C);
         mdio_write(tp, 0x0E, 0x310C);
         mdio_write(tp, 0x0F, 0x311C);
         mdio_write(tp, 0x06, 0x0761);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x18, 0xFF55);
         mdio_write(tp, 0x19, 0x3955);
         mdio_write(tp, 0x18, 0xFF54);
         mdio_write(tp, 0x19, 0x3954);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
     } else if (tp->mcfg == CFG_METHOD_8) {
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | (1 << 5));
         mdio_write(tp, 0x0D, mdio_read(tp, 0x0D) & ~(1 << 5));
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x14, 0xCAA3);
         mdio_write(tp, 0x1C, 0x000A);
         mdio_write(tp, 0x18, 0x65D0);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x17, 0xB580);
         mdio_write(tp, 0x18, 0xFF54);
         mdio_write(tp, 0x19, 0x3954);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x0D, 0x310C);
         mdio_write(tp, 0x0E, 0x310C);
         mdio_write(tp, 0x0F, 0x311C);
         mdio_write(tp, 0x06, 0x0761);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x18, 0xFF55);
         mdio_write(tp, 0x19, 0x3955);
         mdio_write(tp, 0x18, 0xFF54);
         mdio_write(tp, 0x19, 0x3954);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x16, mdio_read(tp, 0x16) | (1 << 0));
-        
+
         mdio_write(tp, 0x1F, 0x0000);
     } else if (tp->mcfg == CFG_METHOD_9) {
         mdio_write(tp, 0x1F, 0x0001);
@@ -13780,7 +14054,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x13, 0x070B);
         mdio_write(tp, 0x1A, 0x05AD);
         mdio_write(tp, 0x14, 0x94C0);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         gphy_val = mdio_read(tp, 0x0B) & 0xFF00;
         gphy_val |= 0x10;
@@ -13788,20 +14062,20 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x0C) & 0x00FF;
         gphy_val |= 0xA200;
         mdio_write(tp, 0x0C, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x06, 0x5561);
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8332);
         mdio_write(tp, 0x06, 0x5561);
-        
+
         if (rtl8168_efuse_read(tp, 0x01) == 0xb1) {
             mdio_write(tp, 0x1F, 0x0002);
             mdio_write(tp, 0x05, 0x669A);
             mdio_write(tp, 0x1F, 0x0005);
             mdio_write(tp, 0x05, 0x8330);
             mdio_write(tp, 0x06, 0x669A);
-            
+
             mdio_write(tp, 0x1F, 0x0002);
             gphy_val = mdio_read(tp, 0x0D);
             if ((gphy_val & 0x00FF) != 0x006C) {
@@ -13823,7 +14097,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x05, 0x8330);
             mdio_write(tp, 0x06, 0x6662);
         }
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         gphy_val = mdio_read(tp, 0x0D);
         gphy_val |= BIT_9;
@@ -13832,7 +14106,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x0F);
         gphy_val |= BIT_4;
         mdio_write(tp, 0x0F, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         gphy_val = mdio_read(tp, 0x02);
         gphy_val &= ~BIT_10;
@@ -13844,10 +14118,10 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val &= ~BIT_14;
         gphy_val &= ~BIT_13;
         mdio_write(tp, 0x03, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x001B);
         if (mdio_read(tp, 0x06) == 0xBF00) {
@@ -14225,7 +14499,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x06, 0x00fc);
             mdio_write(tp, 0x1f, 0x0000);
         }
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x0D, 0xF880);
         mdio_write(tp, 0x1F, 0x0000);
@@ -14247,20 +14521,20 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x13, 0x070B);
         mdio_write(tp, 0x1A, 0x05AD);
         mdio_write(tp, 0x14, 0x94C0);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x06, 0x5561);
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8332);
         mdio_write(tp, 0x06, 0x5561);
-        
+
         if (rtl8168_efuse_read(tp, 0x01) == 0xb1) {
             mdio_write(tp, 0x1F, 0x0002);
             mdio_write(tp, 0x05, 0x669A);
             mdio_write(tp, 0x1F, 0x0005);
             mdio_write(tp, 0x05, 0x8330);
             mdio_write(tp, 0x06, 0x669A);
-            
+
             mdio_write(tp, 0x1F, 0x0002);
             gphy_val = mdio_read(tp, 0x0D);
             if ((gphy_val & 0x00FF) != 0x006C) {
@@ -14282,7 +14556,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x05, 0x8330);
             mdio_write(tp, 0x06, 0x2642);
         }
-        
+
         if (rtl8168_efuse_read(tp, 0x30) == 0x98) {
             mdio_write(tp, 0x1F, 0x0000);
             mdio_write(tp, 0x11, mdio_read(tp, 0x11) & ~BIT_1);
@@ -14294,7 +14568,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x1F, 0x0000);
             mdio_write(tp, 0x16, 0x5101);
         }
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         gphy_val = mdio_read(tp, 0x02);
         gphy_val &= ~BIT_10;
@@ -14306,10 +14580,10 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val &= ~BIT_14;
         gphy_val &= ~BIT_13;
         mdio_write(tp, 0x03, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         gphy_val = mdio_read(tp, 0x0F);
         gphy_val |= BIT_4;
@@ -14317,7 +14591,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val |= BIT_1;
         gphy_val |= BIT_0;
         mdio_write(tp, 0x0F, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x001B);
         if (mdio_read(tp, 0x06) == 0xB300) {
@@ -14653,7 +14927,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x06, 0x00fc);
             mdio_write(tp, 0x1f, 0x0000);
         }
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x0D, 0xF880);
         mdio_write(tp, 0x1F, 0x0000);
@@ -14661,10 +14935,10 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x10, 0x0008);
         mdio_write(tp, 0x0D, 0x006C);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x0B, 0xA4D8);
         mdio_write(tp, 0x09, 0x281C);
@@ -14684,7 +14958,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x14, 0x84B0);
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x00, 0x9200);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x01, 0x0340);
         mdio_write(tp, 0x1F, 0x0001);
@@ -14703,28 +14977,28 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x04, 0xF800);
         mdio_write(tp, 0x04, 0xF000);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x0023);
         mdio_write(tp, 0x16, 0x0000);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         gphy_val = mdio_read(tp, 0x0D);
         gphy_val |= BIT_5;
         mdio_write(tp, 0x0D, gphy_val);
     } else if (tp->mcfg == CFG_METHOD_12 || tp->mcfg == CFG_METHOD_13) {
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x17, 0x0CC0);
-        
+
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x002D);
         mdio_write(tp, 0x18, 0x0040);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         gphy_val = mdio_read(tp, 0x0D);
         gphy_val |= BIT_5;
         mdio_write(tp, 0x0D, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         gphy_val = mdio_read(tp, 0x0C);
         gphy_val |= BIT_10;
@@ -14735,12 +15009,12 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x17)|0x02;
         mdio_write(tp, 0x17, gphy_val);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0005);
         mdio_write(tp, 0x05, 0x8b80);
         mdio_write(tp, 0x06, 0xc896);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x0B, 0x6C20);
         mdio_write(tp, 0x07, 0x2872);
@@ -14748,12 +15022,12 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x14, 0x6420);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         gphy_val = mdio_read(tp, 0x08) & 0x00FF;
         mdio_write(tp, 0x08, gphy_val | 0x8000);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x002D);
         gphy_val = mdio_read(tp, 0x18);
@@ -14761,29 +15035,34 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0000);
         gphy_val = mdio_read(tp, 0x14);
         mdio_write(tp, 0x14, gphy_val | 0x8000);
-        
+
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x00, 0x080B);
         mdio_write(tp, 0x0B, 0x09D7);
-        mdio_write(tp, 0x1f, 0x0000);
-        mdio_write(tp, 0x15, 0x1006);
-        
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1f, 0x0000);
+                mdio_write(tp, 0x15, 0x1006);
+            }
+        }
+
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x002F);
         mdio_write(tp, 0x15, 0x1919);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B86);
         gphy_val = mdio_read(tp, 0x06);
         mdio_write(tp, 0x06, gphy_val | 0x0001);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x00AC);
         mdio_write(tp, 0x18, 0x0006);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x19, 0x7F46);
         mdio_write(tp, 0x1F, 0x0005);
@@ -14801,7 +15080,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val |= BIT_2 | BIT_1;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0004);
         mdio_write(tp, 0x1f, 0x0007);
         mdio_write(tp, 0x1e, 0x002D);
@@ -14813,17 +15092,17 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x14);
         gphy_val |= BIT_15;
         mdio_write(tp, 0x14, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0000);
         mdio_write(tp, 0x15, 0x1006);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B86);
         gphy_val = mdio_read(tp, 0x06);
         gphy_val |= BIT_0;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0001);
         mdio_write(tp, 0x0B, 0x6C14);
         mdio_write(tp, 0x14, 0x7F3D);
@@ -14836,7 +15115,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x12, 0xF480);
         mdio_write(tp, 0x13, 0x0747);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0004);
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x0078);
@@ -14845,12 +15124,12 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x19, 0x0008);
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x0D, 0x0207);
         mdio_write(tp, 0x02, 0x5FD0);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0004);
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x00A1);
@@ -14859,7 +15138,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1A, gphy_val);
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0004);
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x002D);
@@ -14868,18 +15147,18 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x16, gphy_val);
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0004);
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x00AC);
         mdio_write(tp, 0x18, 0x0006);
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x09, 0xA20F);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B5B);
         mdio_write(tp, 0x06, 0x9222);
@@ -14888,16 +15167,16 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x05, 0x8B76);
         mdio_write(tp, 0x06, 0x8000);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         if (pdev->subsystem_vendor == 0x1043 &&
             pdev->subsystem_device == 0x13F7) {
-            
+
             static const u16 evl_phy_value[] = {
                 0x8B56, 0x8B5F, 0x8B68, 0x8B71,
                 0x8B7A, 0x8A7B, 0x8A7E, 0x8A81,
                 0x8A84, 0x8A87
             };
-            
+
             mdio_write(tp, 0x1F, 0x0005);
             for (i = 0; i < ARRAY_SIZE(evl_phy_value); i++) {
                 mdio_write(tp, 0x05, evl_phy_value[i]);
@@ -14909,7 +15188,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x17, 0x51AA);
             mdio_write(tp, 0x1F, 0x0000);
         }
-        
+
         mdio_write(tp, 0x1f, 0x0005);
         mdio_write(tp, 0x05, 0x8B54);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_11);
@@ -14926,10 +15205,10 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x05, 0x8A88);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_8);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B85);
-        gphy_val = mdio_read(tp, 0x06) | BIT_15;
+        gphy_val = mdio_read(tp, 0x06) | BIT_14 | BIT_15;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
     } else if (tp->mcfg == CFG_METHOD_17) {
@@ -14951,7 +15230,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             gphy_val |= BIT_2 | BIT_1;
             mdio_write(tp, 0x06, gphy_val);
             mdio_write(tp, 0x1f, 0x0000);
-            
+
             mdio_write(tp, 0x1F, 0x0005);
             mdio_write(tp, 0x05, 0x8B86);
             gphy_val = mdio_read(tp, 0x06);
@@ -14959,7 +15238,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x06, gphy_val);
             mdio_write(tp, 0x1f, 0x0000);
         }
-        
+
         mdio_write(tp, 0x1f, 0x0004);
         mdio_write(tp, 0x1f, 0x0007);
         mdio_write(tp, 0x1e, 0x002D);
@@ -14971,31 +15250,31 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x14);
         gphy_val |= BIT_15;
         mdio_write(tp, 0x14, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B86);
         gphy_val = mdio_read(tp, 0x06);
         gphy_val |= BIT_0;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0004);
         mdio_write(tp, 0x1F, 0x0007);
         mdio_write(tp, 0x1E, 0x00AC);
         mdio_write(tp, 0x18, 0x0006);
         mdio_write(tp, 0x1F, 0x0002);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x09, 0xA20F);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B85);
         gphy_val = mdio_read(tp, 0x06) | BIT_14 | BIT_15;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B5B);
         mdio_write(tp, 0x06, 0x9222);
@@ -15004,16 +15283,16 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x05, 0x8B76);
         mdio_write(tp, 0x06, 0x8000);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         if (pdev->subsystem_vendor == 0x1043 &&
             pdev->subsystem_device == 0x13F7) {
-            
+
             static const u16 evl_phy_value[] = {
                 0x8B56, 0x8B5F, 0x8B68, 0x8B71,
                 0x8B7A, 0x8A7B, 0x8A7E, 0x8A81,
                 0x8A84, 0x8A87
             };
-            
+
             mdio_write(tp, 0x1F, 0x0005);
             for (i = 0; i < ARRAY_SIZE(evl_phy_value); i++) {
                 mdio_write(tp, 0x05, evl_phy_value[i]);
@@ -15025,7 +15304,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
             mdio_write(tp, 0x17, 0x51AA);
             mdio_write(tp, 0x1F, 0x0000);
         }
-        
+
         mdio_write(tp, 0x1f, 0x0005);
         mdio_write(tp, 0x05, 0x8B54);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_11);
@@ -15042,21 +15321,25 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x05, 0x8A88);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_8);
         mdio_write(tp, 0x1f, 0x0000);
-        
-        if (dev->aspm) {
-            mdio_write(tp, 0x1f, 0x0000);
-            gphy_val = mdio_read(tp, 0x15);
-            gphy_val |= BIT_12;
-            mdio_write(tp, 0x15, gphy_val);
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1f, 0x0000);
+                gphy_val = mdio_read(tp, 0x15);
+                gphy_val |= BIT_12;
+                mdio_write(tp, 0x15, gphy_val);
+            }
         }
     } else if (tp->mcfg == CFG_METHOD_18) {
-        mdio_write(tp, 0x1F, 0x0005);
-        mdio_write(tp, 0x05, 0x8b80);
-        gphy_val = mdio_read(tp, 0x06);
-        gphy_val |= BIT_2 | BIT_1;
-        mdio_write(tp, 0x06, gphy_val);
-        mdio_write(tp, 0x1F, 0x0000);
-        
+        if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+            mdio_write(tp, 0x1F, 0x0005);
+            mdio_write(tp, 0x05, 0x8b80);
+            gphy_val = mdio_read(tp, 0x06);
+            gphy_val |= BIT_2 | BIT_1;
+            mdio_write(tp, 0x06, gphy_val);
+            mdio_write(tp, 0x1F, 0x0000);
+        }
+
         mdio_write(tp, 0x1f, 0x0007);
         mdio_write(tp, 0x1e, 0x002D);
         gphy_val = mdio_read(tp, 0x18);
@@ -15066,25 +15349,25 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x14);
         gphy_val |= BIT_15;
         mdio_write(tp, 0x14, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B86);
         gphy_val = mdio_read(tp, 0x06);
         gphy_val |= BIT_0;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B85);
         gphy_val = mdio_read(tp, 0x06);
         gphy_val |= BIT_14;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x09, 0xA20F);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B55);
         mdio_write(tp, 0x06, 0x0000);
@@ -15100,16 +15383,16 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x17, 0x0000);
         mdio_write(tp, 0x19, 0x00FB);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B79);
         mdio_write(tp, 0x06, 0xAA00);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0003);
         mdio_write(tp, 0x01, 0x328A);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0005);
         mdio_write(tp, 0x05, 0x8B54);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_11);
@@ -15126,26 +15409,32 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x05, 0x8A88);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_8);
         mdio_write(tp, 0x1f, 0x0000);
-        
-        mdio_write(tp, 0x1f, 0x0005);
-        mdio_write(tp, 0x05, 0x8b85);
-        mdio_write(tp, 0x06, mdio_read(tp, 0x06) | BIT_15);
-        mdio_write(tp, 0x1f, 0x0000);
-        
-        if (dev->aspm) {
+
+        if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+            mdio_write(tp, 0x1f, 0x0005);
+            mdio_write(tp, 0x05, 0x8b85);
+            mdio_write(tp, 0x06, mdio_read(tp, 0x06) | BIT_15);
             mdio_write(tp, 0x1f, 0x0000);
-            gphy_val = mdio_read(tp, 0x15);
-            gphy_val |= BIT_12;
-            mdio_write(tp, 0x15, gphy_val);
+        }
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1f, 0x0000);
+                gphy_val = mdio_read(tp, 0x15);
+                gphy_val |= BIT_12;
+                mdio_write(tp, 0x15, gphy_val);
+            }
         }
     } else if (tp->mcfg == CFG_METHOD_19) {
-        mdio_write(tp, 0x1F, 0x0005);
-        mdio_write(tp, 0x05, 0x8b80);
-        gphy_val = mdio_read(tp, 0x06);
-        gphy_val |= BIT_2 | BIT_1;
-        mdio_write(tp, 0x06, gphy_val);
-        mdio_write(tp, 0x1F, 0x0000);
-        
+        if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+            mdio_write(tp, 0x1F, 0x0005);
+            mdio_write(tp, 0x05, 0x8b80);
+            gphy_val = mdio_read(tp, 0x06);
+            gphy_val |= BIT_2 | BIT_1;
+            mdio_write(tp, 0x06, gphy_val);
+            mdio_write(tp, 0x1F, 0x0000);
+        }
+
         mdio_write(tp, 0x1f, 0x0007);
         mdio_write(tp, 0x1e, 0x002D);
         gphy_val = mdio_read(tp, 0x18);
@@ -15155,14 +15444,14 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x14);
         gphy_val |= BIT_15;
         mdio_write(tp, 0x14, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B86);
         gphy_val = mdio_read(tp, 0x06);
         gphy_val |= BIT_0;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0005);
         mdio_write(tp, 0x05, 0x8B54);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_11);
@@ -15179,26 +15468,33 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x05, 0x8A88);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_8);
         mdio_write(tp, 0x1f, 0x0000);
-        
-        mdio_write(tp, 0x1f, 0x0005);
-        mdio_write(tp, 0x05, 0x8b85);
-        mdio_write(tp, 0x06, mdio_read(tp, 0x06) | BIT_15);
-        mdio_write(tp, 0x1f, 0x0000);
-        
-        if (dev->aspm) {
+
+        if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+            mdio_write(tp, 0x1f, 0x0005);
+            mdio_write(tp, 0x05, 0x8b85);
+            mdio_write(tp, 0x06, mdio_read(tp, 0x06) | BIT_15);
             mdio_write(tp, 0x1f, 0x0000);
-            gphy_val = mdio_read(tp, 0x15);
-            gphy_val |= BIT_12;
-            mdio_write(tp, 0x15, gphy_val);
+        }
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1f, 0x0000);
+                gphy_val = mdio_read(tp, 0x15);
+                gphy_val |= BIT_12;
+                mdio_write(tp, 0x15, gphy_val);
+            }
         }
     } else if (tp->mcfg == CFG_METHOD_20) {
-        mdio_write(tp, 0x1F, 0x0005);
-        mdio_write(tp, 0x05, 0x8b80);
-        gphy_val = mdio_read(tp, 0x06);
-        gphy_val |= BIT_2 | BIT_1;
-        mdio_write(tp, 0x06, gphy_val);
-        mdio_write(tp, 0x1F, 0x0000);
-        
+
+        if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+            mdio_write(tp, 0x1F, 0x0005);
+            mdio_write(tp, 0x05, 0x8b80);
+            gphy_val = mdio_read(tp, 0x06);
+            gphy_val |= BIT_2 | BIT_1;
+            mdio_write(tp, 0x06, gphy_val);
+            mdio_write(tp, 0x1F, 0x0000);
+        }
+
         mdio_write(tp, 0x1f, 0x0007);
         mdio_write(tp, 0x1e, 0x002D);
         gphy_val = mdio_read(tp, 0x18);
@@ -15208,25 +15504,25 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x14);
         gphy_val |= BIT_15;
         mdio_write(tp, 0x14, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B86);
         gphy_val = mdio_read(tp, 0x06);
         gphy_val |= BIT_0;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B85);
         gphy_val = mdio_read(tp, 0x06);
         gphy_val |= BIT_14;
         mdio_write(tp, 0x06, gphy_val);
         mdio_write(tp, 0x1f, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0003);
         mdio_write(tp, 0x09, 0xA20F);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B55);
         mdio_write(tp, 0x06, 0x0000);
@@ -15242,12 +15538,12 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x17, 0x0000);
         mdio_write(tp, 0x19, 0x00FB);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1F, 0x0005);
         mdio_write(tp, 0x05, 0x8B79);
         mdio_write(tp, 0x06, 0xAA00);
         mdio_write(tp, 0x1F, 0x0000);
-        
+
         mdio_write(tp, 0x1f, 0x0005);
         mdio_write(tp, 0x05, 0x8B54);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_11);
@@ -15264,17 +15560,21 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x05, 0x8A88);
         mdio_write(tp, 0x06, mdio_read(tp, 0x06) & ~BIT_8);
         mdio_write(tp, 0x1f, 0x0000);
-        
-        mdio_write(tp, 0x1f, 0x0005);
-        mdio_write(tp, 0x05, 0x8b85);
-        mdio_write(tp, 0x06, mdio_read(tp, 0x06) | BIT_15);
-        mdio_write(tp, 0x1f, 0x0000);
-        
-        if (dev->aspm) {
+
+        if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+            mdio_write(tp, 0x1f, 0x0005);
+            mdio_write(tp, 0x05, 0x8b85);
+            mdio_write(tp, 0x06, mdio_read(tp, 0x06) | BIT_15);
             mdio_write(tp, 0x1f, 0x0000);
-            gphy_val = mdio_read(tp, 0x15);
-            gphy_val |= BIT_12;
-            mdio_write(tp, 0x15, gphy_val);
+        }
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1f, 0x0000);
+                gphy_val = mdio_read(tp, 0x15);
+                gphy_val |= BIT_12;
+                mdio_write(tp, 0x15, gphy_val);
+            }
         }
     } else if (tp->mcfg == CFG_METHOD_21) {
         mdio_write(tp, 0x1F, 0x0A46);
@@ -15291,10 +15591,10 @@ rtl8168_hw_phy_config(struct net_device *dev)
             gphy_val = mdio_read(tp, 0x15) | BIT_1;
         else
             gphy_val = mdio_read(tp, 0x15) & ~BIT_1;
-        
+
         mdio_write(tp, 0x1F, 0x0A44);
         mdio_write(tp, 0x11, mdio_read(tp, 0x11) | BIT_2 | BIT_3);
-        
+
         mdio_write(tp, 0x1F, 0x0BCC);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) & ~BIT_8);
         mdio_write(tp, 0x1F, 0x0A44);
@@ -15306,20 +15606,20 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_12);
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_1);
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_0);
-        
+
         mdio_write(tp, 0x1F, 0x0A4B);
         mdio_write(tp, 0x11, mdio_read(tp, 0x11) | BIT_2);
-        
+
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x8012);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | BIT_15);
-        
+
         mdio_write(tp, 0x1F, 0x0C42);
         gphy_val = mdio_read(tp, 0x11);
         gphy_val |= BIT_14;
         gphy_val &= ~BIT_13;
         mdio_write(tp, 0x11, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x809A);
         mdio_write(tp, 0x14, 0x8022);
@@ -15329,7 +15629,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x14, gphy_val);
         mdio_write(tp, 0x13, 0x8088);
         mdio_write(tp, 0x14, 0x9222);
-        
+
         mdio_write(tp, 0x1F, 0x0BCD);
         mdio_write(tp, 0x14, 0x5065);
         mdio_write(tp, 0x14, 0xD065);
@@ -15339,12 +15639,14 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x14, 0x1065);
         mdio_write(tp, 0x14, 0x9065);
         mdio_write(tp, 0x14, 0x1065);
-        
-        if (dev->aspm) {
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1F, 0x0A43);
+                mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+            }
         }
-        
+
         mdio_write(tp, 0x1F, 0x0000);
     } else if (tp->mcfg == CFG_METHOD_22) {
         mdio_write(tp, 0x1F, 0x0BCD);
@@ -15376,7 +15678,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         gphy_val = mdio_read(tp, 0x10);
         gphy_val |= BIT_2 | BIT_1 | BIT_0;
         mdio_write(tp, 0x10, gphy_val);
-        
+
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x809C);
         mdio_write(tp, 0x14, 0xA700);
@@ -15397,16 +15699,18 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x8012);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | BIT_15);
-        
+
         mdio_write(tp, 0x1F, 0x0C42);
         gphy_val = mdio_read(tp, 0x11);
         gphy_val |= BIT_14;
         gphy_val &= ~BIT_13;
         mdio_write(tp, 0x11, gphy_val);
-        
-        if (dev->aspm) {
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1F, 0x0A43);
+                mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+            }
         }
     } else if (tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26) {
         mdio_write(tp, 0x1F, 0x0BCC);
@@ -15420,14 +15724,14 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_12);
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_1);
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_0);
-        
+
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x8012);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | BIT_15);
-        
+
         mdio_write(tp, 0x1F, 0x0BCE);
         mdio_write(tp, 0x12, 0x8860);
-        
+
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x80F3);
         mdio_write(tp, 0x14, (mdio_read(tp, 0x14) & ~0xFF00) | 0x8B00);
@@ -15473,12 +15777,14 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x14, (mdio_read(tp, 0x14) & ~0xFF00) | 0xCA00);
         mdio_write(tp, 0x13, 0x80D7);
         mdio_write(tp, 0x14, (mdio_read(tp, 0x14) & ~0xFF00) | 0x8400);
-        
-        if (dev->aspm) {
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1F, 0x0A43);
+                mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+            }
         }
-    } else if (tp->mcfg == CFG_METHOD_27) {
+    } else if (tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
         mdio_write(tp, 0x1F, 0x0BCC);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) & ~BIT_8);
         mdio_write(tp, 0x1F, 0x0A44);
@@ -15490,14 +15796,14 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_12);
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_1);
         mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_0);
-        
+
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x8012);
         mdio_write(tp, 0x14, mdio_read(tp, 0x14) | BIT_15);
-        
+
         mdio_write(tp, 0x1F, 0x0C42);
         mdio_write(tp, 0x11, (mdio_read(tp, 0x11) & ~BIT_13) | BIT_14);
-        
+
         mdio_write(tp, 0x1F, 0x0A43);
         mdio_write(tp, 0x13, 0x80F3);
         mdio_write(tp, 0x14, (mdio_read(tp, 0x14) & ~0xFF00) | 0x8B00);
@@ -15543,47 +15849,53 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x14, (mdio_read(tp, 0x14) & ~0xFF00) | 0xCA00);
         mdio_write(tp, 0x13, 0x80D7);
         mdio_write(tp, 0x14, (mdio_read(tp, 0x14) & ~0xFF00) | 0x8400);
-        
-        mdio_write(tp, 0x1F, 0x0BCD);
-        mdio_write(tp, 0x14, 0x5065);
-        mdio_write(tp, 0x14, 0xD065);
-        mdio_write(tp, 0x1F, 0x0BC8);
-        mdio_write(tp, 0x12, 0x00ED);
-        mdio_write(tp, 0x1F, 0x0BCD);
-        mdio_write(tp, 0x14, 0x1065);
-        mdio_write(tp, 0x14, 0x9065);
-        mdio_write(tp, 0x14, 0x1065);
-        mdio_write(tp, 0x1F, 0x0000);
-        
-        
-        if (dev->aspm) {
-            mdio_write(tp, 0x1F, 0x0A43);
-            mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+
+        if (tp->mcfg == CFG_METHOD_27) {
+            mdio_write(tp, 0x1F, 0x0BCD);
+            mdio_write(tp, 0x14, 0x5065);
+            mdio_write(tp, 0x14, 0xD065);
+            mdio_write(tp, 0x1F, 0x0BC8);
+            mdio_write(tp, 0x12, 0x00ED);
+            mdio_write(tp, 0x1F, 0x0BCD);
+            mdio_write(tp, 0x14, 0x1065);
+            mdio_write(tp, 0x14, 0x9065);
+            mdio_write(tp, 0x14, 0x1065);
+            mdio_write(tp, 0x1F, 0x0000);
+        }
+
+
+        if (aspm) {
+            if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+                mdio_write(tp, 0x1F, 0x0A43);
+                mdio_write(tp, 0x10, mdio_read(tp, 0x10) | BIT_2);
+            }
         }
     }
-    
-    
+
+
     /*ocp phy power saving*/
-    if (tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 || tp->mcfg == CFG_METHOD_27) {
-        if (dev->aspm) {
+    if (tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
+        tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28) {
+        if (aspm) {
             mdio_write(tp, 0x1F, 0x0C41);
             mdio_write(tp, 0x13, 0x0000);
             mdio_write(tp, 0x13, 0x0050);
             mdio_write(tp, 0x1F, 0x0000);
         }
     }
-    
+
     mdio_write(tp, 0x1F, 0x0000);
-    
+
     spin_unlock_irqrestore(&tp->phy_lock, flags);
-    
-    if (eee_enable == 1)
-        rtl8168_enable_EEE(tp);
-    else
-        rtl8168_disable_EEE(tp);
+
+    if (tp->HwHasWrRamCodeToMicroP == TRUE) {
+        if (eee_enable == 1)
+            rtl8168_enable_EEE(tp);
+        else
+            rtl8168_disable_EEE(tp);
+    }
 }
 
-#if DISABLED_CODE
 
 static inline void rtl8168_delete_esd_timer(struct net_device *dev, struct timer_list *timer)
 {
@@ -15594,7 +15906,7 @@ static inline void rtl8168_request_esd_timer(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     struct timer_list *timer = &tp->esd_timer;
-    
+
     init_timer(timer);
     timer->expires = jiffies + RTL8168_ESD_TIMEOUT;
     timer->data = (unsigned long)(dev);
@@ -15611,7 +15923,7 @@ static inline void rtl8168_request_link_timer(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     struct timer_list *timer = &tp->link_timer;
-    
+
     init_timer(timer);
     timer->expires = jiffies + RTL8168_LINK_TIMEOUT;
     timer->data = (unsigned long)(dev);
@@ -15630,7 +15942,7 @@ rtl8168_netpoll(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     struct pci_dev *pdev = tp->pci_dev;
-    
+
     disable_irq(pdev->irq);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
     rtl8168_interrupt(pdev->irq, dev, NULL);
@@ -15646,29 +15958,30 @@ rtl8168_get_bios_setting(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            tp->bios_setting = RTL_R32(0x8c);
-            break;
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        tp->bios_setting = RTL_R32(0x8c);
+        break;
     }
 }
 
@@ -15677,29 +15990,30 @@ rtl8168_set_bios_setting(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            RTL_W32(0x8C, tp->bios_setting);
-            break;
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        RTL_W32(0x8C, tp->bios_setting);
+        break;
     }
 }
 
@@ -15708,26 +16022,63 @@ rtl8168_init_software_variable(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     struct pci_dev *pdev = tp->pci_dev;
-    
+
     rtl8168_get_bios_setting(dev);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_1:
-            tp->intr_mask = RxDescUnavail | RxFIFOOver | TxDescUnavail | TxOK | RxOK | SWInt;
-            break;
-        case CFG_METHOD_2:
-        case CFG_METHOD_3:
-        case CFG_METHOD_4:
-            tp->intr_mask = RxDescUnavail | TxDescUnavail | TxOK | RxOK | SWInt;
-            break;
-        default:
-            tp->intr_mask = RxDescUnavail | TxOK | RxOK | SWInt;
-            break;
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+        tp->HwSuppDashVer = 1;
+        break;
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        tp->HwSuppDashVer = 2;
+        break;
+    default:
+        tp->HwSuppDashVer = 0;
+        break;
     }
-    
-    tp->max_jumbo_frame_size = rtl_chip_info[tp->chipset].jumbo_frame_sz;
-    
+
+    if (HW_DASH_SUPPORT_DASH(tp) && rtl8168_check_dash(tp))
+        tp->DASH = 1;
+    else
+        tp->DASH = 0;
+
     switch (tp->mcfg) {
+    case CFG_METHOD_1:
+        tp->intr_mask = RxDescUnavail | RxFIFOOver | TxDescUnavail | TxOK | RxOK | SWInt;
+        tp->timer_intr_mask = PCSTimeout | RxFIFOOver;
+        break;
+    case CFG_METHOD_2:
+    case CFG_METHOD_3:
+    case CFG_METHOD_4:
+        tp->intr_mask = RxDescUnavail | TxDescUnavail | TxOK | RxOK | SWInt;
+        tp->timer_intr_mask = PCSTimeout;
+        break;
+    default:
+        tp->intr_mask = RxDescUnavail | TxOK | RxOK | SWInt;
+        tp->timer_intr_mask = PCSTimeout;
+        break;
+    }
+
+#ifdef ENABLE_DASH_SUPPORT
+    if(tp->DASH) {
+        if( HW_DASH_SUPPORT_TYPE_2( tp ) ) {
+            tp->timer_intr_mask |= ( ISRIMR_DASH_INTR_EN | ISRIMR_DASH_INTR_CMAC_RESET);
+            tp->intr_mask |= ( ISRIMR_DASH_INTR_EN | ISRIMR_DASH_INTR_CMAC_RESET);
+        } else {
+            tp->timer_intr_mask |= ( ISRIMR_DP_DASH_OK | ISRIMR_DP_HOST_OK | ISRIMR_DP_REQSYS_OK );
+            tp->intr_mask |= ( ISRIMR_DP_DASH_OK | ISRIMR_DP_HOST_OK | ISRIMR_DP_REQSYS_OK );
+        }
+    }
+#endif
+
+    tp->max_jumbo_frame_size = rtl_chip_info[tp->chipset].jumbo_frame_sz;
+
+    if (aspm) {
+        switch (tp->mcfg) {
         case CFG_METHOD_21:
         case CFG_METHOD_22:
         case CFG_METHOD_23:
@@ -15737,42 +16088,53 @@ rtl8168_init_software_variable(struct net_device *dev)
         case CFG_METHOD_27:
             tp->org_pci_offset_99 = rtl8168_csi_fun0_read_byte(tp, 0x99);
             break;
-    }
-    switch (tp->mcfg) {
+        case CFG_METHOD_28:
+            tp->org_pci_offset_99 = rtl8168_csi_fun0_read_byte(tp, 0x99);
+            tp->org_pci_offset_99 &= ~(BIT_5|BIT_6);
+            break;
+        }
+        switch (tp->mcfg) {
         case CFG_METHOD_24:
         case CFG_METHOD_25:
         case CFG_METHOD_26:
         case CFG_METHOD_27:
+        case CFG_METHOD_28:
             tp->org_pci_offset_180 = rtl8168_csi_fun0_read_byte(tp, 0x180);
             break;
+        }
     }
-    
+
     pci_read_config_byte(pdev, 0x80, &tp->org_pci_offset_80);
     pci_read_config_byte(pdev, 0x81, &tp->org_pci_offset_81);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            if ((tp->features & RTL_FEATURE_MSI) && (tp->org_pci_offset_80 & BIT_1))
-                tp->use_timer_interrrupt = FALSE;
-            else
-                tp->use_timer_interrrupt = TRUE;
-            break;
-        default:
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+        if ((tp->features & RTL_FEATURE_MSI) && (tp->org_pci_offset_80 & BIT_1))
+            tp->use_timer_interrrupt = FALSE;
+        else
             tp->use_timer_interrrupt = TRUE;
-            break;
+        break;
+    default:
+        tp->use_timer_interrrupt = TRUE;
+        break;
     }
-    
+
+    if (tp->HwIcVerUnknown) {
+        tp->NotWrRamCodeToMicroP = TRUE;
+        tp->NotWrMcuPatchCode = TRUE;
+    }
+
     rtl8168_get_hw_wol(dev);
 }
 
@@ -15782,13 +16144,18 @@ rtl8168_release_board(struct pci_dev *pdev,
                       void __iomem *ioaddr)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     rtl8168_set_bios_setting(dev);
     rtl8168_rar_set(tp, tp->org_mac_addr);
     tp->wol_enabled = WOL_DISABLED;
-    
+
     rtl8168_phy_power_down(dev);
-    
+
+#ifdef ENABLE_DASH_SUPPORT
+    if(tp->DASH)
+        FreeAllocatedDashShareMemory(dev);
+#endif
+
     iounmap(ioaddr);
     pci_release_regions(pdev);
     pci_disable_device(pdev);
@@ -15801,8 +16168,8 @@ rtl8168_get_mac_address(struct net_device *dev)
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     int i;
-    
-    
+
+
     if (tp->mcfg == CFG_METHOD_18 ||
         tp->mcfg == CFG_METHOD_19 ||
         tp->mcfg == CFG_METHOD_20 ||
@@ -15812,12 +16179,13 @@ rtl8168_get_mac_address(struct net_device *dev)
         tp->mcfg == CFG_METHOD_24 ||
         tp->mcfg == CFG_METHOD_25 ||
         tp->mcfg == CFG_METHOD_26 ||
-        tp->mcfg == CFG_METHOD_27) {
+        tp->mcfg == CFG_METHOD_27 ||
+        tp->mcfg == CFG_METHOD_28) {
         u16 mac_addr[3];
-        
+
         *(u32*)&mac_addr[0] = rtl8168_eri_read(ioaddr, 0xE0, 4, ERIAR_ExGMAC);
         *(u16*)&mac_addr[2] = rtl8168_eri_read(ioaddr, 0xE4, 2, ERIAR_ExGMAC);
-        
+
         RTL_W8(Cfg9346, Cfg9346_Unlock);
         RTL_W32(MAC0, (mac_addr[1] << 16) | mac_addr[0]);
         RTL_W16(MAC4, mac_addr[2]);
@@ -15825,7 +16193,7 @@ rtl8168_get_mac_address(struct net_device *dev)
     } else {
         if (tp->eeprom_type != EEPROM_TYPE_NONE) {
             u16 mac_addr[3];
-            
+
             /* Get MAC address from EEPROM */
             if (tp->mcfg == CFG_METHOD_16 ||
                 tp->mcfg == CFG_METHOD_17 ||
@@ -15838,7 +16206,8 @@ rtl8168_get_mac_address(struct net_device *dev)
                 tp->mcfg == CFG_METHOD_24 ||
                 tp->mcfg == CFG_METHOD_25 ||
                 tp->mcfg == CFG_METHOD_26 ||
-                tp->mcfg == CFG_METHOD_27) {
+                tp->mcfg == CFG_METHOD_27 ||
+                tp->mcfg == CFG_METHOD_28) {
                 mac_addr[0] = rtl_eeprom_read_sc(tp, 1);
                 mac_addr[1] = rtl_eeprom_read_sc(tp, 2);
                 mac_addr[2] = rtl_eeprom_read_sc(tp, 3);
@@ -15853,7 +16222,7 @@ rtl8168_get_mac_address(struct net_device *dev)
             RTL_W8(Cfg9346, Cfg9346_Lock);
         }
     }
-    
+
     for (i = 0; i < MAC_ADDR_LEN; i++) {
         dev->dev_addr[i] = RTL_R8(MAC0 + i);
         tp->org_mac_addr[i] = dev->dev_addr[i]; /* keep the original MAC address */
@@ -15861,8 +16230,8 @@ rtl8168_get_mac_address(struct net_device *dev)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13)
     memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 #endif
-    //  memcpy(dev->dev_addr, dev->dev_addr, dev->addr_len);
-    
+//  memcpy(dev->dev_addr, dev->dev_addr, dev->addr_len);
+
     return 0;
 }
 
@@ -15880,22 +16249,20 @@ rtl8168_set_mac_address(struct net_device *dev,
     struct rtl8168_private *tp = netdev_priv(dev);
     struct sockaddr *addr = p;
     unsigned long flags;
-    
+
     if (!is_valid_ether_addr(addr->sa_data))
         return -EADDRNOTAVAIL;
-    
+
     memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     rtl8168_rar_set(tp, dev->dev_addr);
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     return 0;
 }
-
-#endif  /* DISABLED_CODE */
 
 /******************************************************************************
  * rtl8168_rar_set - Puts an ethernet address into a receive address register.
@@ -15910,44 +16277,40 @@ rtl8168_rar_set(struct rtl8168_private *tp,
     void __iomem *ioaddr = tp->mmio_addr;
     uint32_t rar_low = 0;
     uint32_t rar_high = 0;
-    
+
     rar_low = ((uint32_t) addr[0] |
                ((uint32_t) addr[1] << 8) |
                ((uint32_t) addr[2] << 16) |
                ((uint32_t) addr[3] << 24));
-    
+
     rar_high = ((uint32_t) addr[4] |
                 ((uint32_t) addr[5] << 8));
-    
+
     RTL_W8(Cfg9346, Cfg9346_Unlock);
     RTL_W32(MAC0, rar_low);
     RTL_W32(MAC4, rar_high);
-    
+
     if (tp->mcfg == CFG_METHOD_17) {
-        rtl8168_eri_write(ioaddr, 0xe0, 4, rar_low, ERIAR_ExGMAC);
-        rtl8168_eri_write(ioaddr, 0xe4, 4, rar_high, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xf0, 4, rar_low << 16, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xf4, 4, rar_low >> 16 | rar_high << 16, ERIAR_ExGMAC);
     }
-    
+
     RTL_W8(Cfg9346, Cfg9346_Lock);
 }
-
-#if DISABLED_CODE
 
 #ifdef ETHTOOL_OPS_COMPAT
 static int ethtool_get_settings(struct net_device *dev, void *useraddr)
 {
     struct ethtool_cmd cmd = { ETHTOOL_GSET };
     int err;
-    
+
     if (!ethtool_ops->get_settings)
         return -EOPNOTSUPP;
-    
+
     err = ethtool_ops->get_settings(dev, &cmd);
     if (err < 0)
         return err;
-    
+
     if (copy_to_user(useraddr, &cmd, sizeof(cmd)))
         return -EFAULT;
     return 0;
@@ -15956,13 +16319,13 @@ static int ethtool_get_settings(struct net_device *dev, void *useraddr)
 static int ethtool_set_settings(struct net_device *dev, void *useraddr)
 {
     struct ethtool_cmd cmd;
-    
+
     if (!ethtool_ops->set_settings)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_settings(dev, &cmd);
 }
 
@@ -15970,14 +16333,14 @@ static int ethtool_get_drvinfo(struct net_device *dev, void *useraddr)
 {
     struct ethtool_drvinfo info;
     struct ethtool_ops *ops = ethtool_ops;
-    
+
     if (!ops->get_drvinfo)
         return -EOPNOTSUPP;
-    
+
     memset(&info, 0, sizeof(info));
     info.cmd = ETHTOOL_GDRVINFO;
     ops->get_drvinfo(dev, &info);
-    
+
     if (ops->self_test_count)
         info.testinfo_len = ops->self_test_count(dev);
     if (ops->get_stats_count)
@@ -15986,7 +16349,7 @@ static int ethtool_get_drvinfo(struct net_device *dev, void *useraddr)
         info.regdump_len = ops->get_regs_len(dev);
     if (ops->get_eeprom_len)
         info.eedump_len = ops->get_eeprom_len(dev);
-    
+
     if (copy_to_user(useraddr, &info, sizeof(info)))
         return -EFAULT;
     return 0;
@@ -15998,23 +16361,23 @@ static int ethtool_get_regs(struct net_device *dev, char *useraddr)
     struct ethtool_ops *ops = ethtool_ops;
     void *regbuf;
     int reglen, ret;
-    
+
     if (!ops->get_regs || !ops->get_regs_len)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&regs, useraddr, sizeof(regs)))
         return -EFAULT;
-    
+
     reglen = ops->get_regs_len(dev);
     if (regs.len > reglen)
         regs.len = reglen;
-    
+
     regbuf = kmalloc(reglen, GFP_USER);
     if (!regbuf)
         return -ENOMEM;
-    
+
     ops->get_regs(dev, &regs, regbuf);
-    
+
     ret = -EFAULT;
     if (copy_to_user(useraddr, &regs, sizeof(regs)))
         goto out;
@@ -16022,7 +16385,7 @@ static int ethtool_get_regs(struct net_device *dev, char *useraddr)
     if (copy_to_user(useraddr, regbuf, reglen))
         goto out;
     ret = 0;
-    
+
 out:
     kfree(regbuf);
     return ret;
@@ -16031,12 +16394,12 @@ out:
 static int ethtool_get_wol(struct net_device *dev, char *useraddr)
 {
     struct ethtool_wolinfo wol = { ETHTOOL_GWOL };
-    
+
     if (!ethtool_ops->get_wol)
         return -EOPNOTSUPP;
-    
+
     ethtool_ops->get_wol(dev, &wol);
-    
+
     if (copy_to_user(useraddr, &wol, sizeof(wol)))
         return -EFAULT;
     return 0;
@@ -16045,25 +16408,25 @@ static int ethtool_get_wol(struct net_device *dev, char *useraddr)
 static int ethtool_set_wol(struct net_device *dev, char *useraddr)
 {
     struct ethtool_wolinfo wol;
-    
+
     if (!ethtool_ops->set_wol)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&wol, useraddr, sizeof(wol)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_wol(dev, &wol);
 }
 
 static int ethtool_get_msglevel(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata = { ETHTOOL_GMSGLVL };
-    
+
     if (!ethtool_ops->get_msglevel)
         return -EOPNOTSUPP;
-    
+
     edata.data = ethtool_ops->get_msglevel(dev);
-    
+
     if (copy_to_user(useraddr, &edata, sizeof(edata)))
         return -EFAULT;
     return 0;
@@ -16072,13 +16435,13 @@ static int ethtool_get_msglevel(struct net_device *dev, char *useraddr)
 static int ethtool_set_msglevel(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata;
-    
+
     if (!ethtool_ops->set_msglevel)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&edata, useraddr, sizeof(edata)))
         return -EFAULT;
-    
+
     ethtool_ops->set_msglevel(dev, edata.data);
     return 0;
 }
@@ -16087,19 +16450,19 @@ static int ethtool_nway_reset(struct net_device *dev)
 {
     if (!ethtool_ops->nway_reset)
         return -EOPNOTSUPP;
-    
+
     return ethtool_ops->nway_reset(dev);
 }
 
 static int ethtool_get_link(struct net_device *dev, void *useraddr)
 {
     struct ethtool_value edata = { ETHTOOL_GLINK };
-    
+
     if (!ethtool_ops->get_link)
         return -EOPNOTSUPP;
-    
+
     edata.data = ethtool_ops->get_link(dev);
-    
+
     if (copy_to_user(useraddr, &edata, sizeof(edata)))
         return -EFAULT;
     return 0;
@@ -16111,40 +16474,40 @@ static int ethtool_get_eeprom(struct net_device *dev, void *useraddr)
     struct ethtool_ops *ops = ethtool_ops;
     u8 *data;
     int ret;
-    
+
     if (!ops->get_eeprom || !ops->get_eeprom_len)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&eeprom, useraddr, sizeof(eeprom)))
         return -EFAULT;
-    
+
     /* Check for wrap and zero */
     if (eeprom.offset + eeprom.len <= eeprom.offset)
         return -EINVAL;
-    
+
     /* Check for exceeding total eeprom len */
     if (eeprom.offset + eeprom.len > ops->get_eeprom_len(dev))
         return -EINVAL;
-    
+
     data = kmalloc(eeprom.len, GFP_USER);
     if (!data)
         return -ENOMEM;
-    
+
     ret = -EFAULT;
     if (copy_from_user(data, useraddr + sizeof(eeprom), eeprom.len))
         goto out;
-    
+
     ret = ops->get_eeprom(dev, &eeprom, data);
     if (ret)
         goto out;
-    
+
     ret = -EFAULT;
     if (copy_to_user(useraddr, &eeprom, sizeof(eeprom)))
         goto out;
     if (copy_to_user(useraddr + sizeof(eeprom), data, eeprom.len))
         goto out;
     ret = 0;
-    
+
 out:
     kfree(data);
     return ret;
@@ -16156,36 +16519,36 @@ static int ethtool_set_eeprom(struct net_device *dev, void *useraddr)
     struct ethtool_ops *ops = ethtool_ops;
     u8 *data;
     int ret;
-    
+
     if (!ops->set_eeprom || !ops->get_eeprom_len)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&eeprom, useraddr, sizeof(eeprom)))
         return -EFAULT;
-    
+
     /* Check for wrap and zero */
     if (eeprom.offset + eeprom.len <= eeprom.offset)
         return -EINVAL;
-    
+
     /* Check for exceeding total eeprom len */
     if (eeprom.offset + eeprom.len > ops->get_eeprom_len(dev))
         return -EINVAL;
-    
+
     data = kmalloc(eeprom.len, GFP_USER);
     if (!data)
         return -ENOMEM;
-    
+
     ret = -EFAULT;
     if (copy_from_user(data, useraddr + sizeof(eeprom), eeprom.len))
         goto out;
-    
+
     ret = ops->set_eeprom(dev, &eeprom, data);
     if (ret)
         goto out;
-    
+
     if (copy_to_user(useraddr + sizeof(eeprom), data, eeprom.len))
         ret = -EFAULT;
-    
+
 out:
     kfree(data);
     return ret;
@@ -16194,12 +16557,12 @@ out:
 static int ethtool_get_coalesce(struct net_device *dev, void *useraddr)
 {
     struct ethtool_coalesce coalesce = { ETHTOOL_GCOALESCE };
-    
+
     if (!ethtool_ops->get_coalesce)
         return -EOPNOTSUPP;
-    
+
     ethtool_ops->get_coalesce(dev, &coalesce);
-    
+
     if (copy_to_user(useraddr, &coalesce, sizeof(coalesce)))
         return -EFAULT;
     return 0;
@@ -16208,25 +16571,25 @@ static int ethtool_get_coalesce(struct net_device *dev, void *useraddr)
 static int ethtool_set_coalesce(struct net_device *dev, void *useraddr)
 {
     struct ethtool_coalesce coalesce;
-    
+
     if (!ethtool_ops->get_coalesce)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&coalesce, useraddr, sizeof(coalesce)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_coalesce(dev, &coalesce);
 }
 
 static int ethtool_get_ringparam(struct net_device *dev, void *useraddr)
 {
     struct ethtool_ringparam ringparam = { ETHTOOL_GRINGPARAM };
-    
+
     if (!ethtool_ops->get_ringparam)
         return -EOPNOTSUPP;
-    
+
     ethtool_ops->get_ringparam(dev, &ringparam);
-    
+
     if (copy_to_user(useraddr, &ringparam, sizeof(ringparam)))
         return -EFAULT;
     return 0;
@@ -16235,25 +16598,25 @@ static int ethtool_get_ringparam(struct net_device *dev, void *useraddr)
 static int ethtool_set_ringparam(struct net_device *dev, void *useraddr)
 {
     struct ethtool_ringparam ringparam;
-    
+
     if (!ethtool_ops->get_ringparam)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&ringparam, useraddr, sizeof(ringparam)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_ringparam(dev, &ringparam);
 }
 
 static int ethtool_get_pauseparam(struct net_device *dev, void *useraddr)
 {
     struct ethtool_pauseparam pauseparam = { ETHTOOL_GPAUSEPARAM };
-    
+
     if (!ethtool_ops->get_pauseparam)
         return -EOPNOTSUPP;
-    
+
     ethtool_ops->get_pauseparam(dev, &pauseparam);
-    
+
     if (copy_to_user(useraddr, &pauseparam, sizeof(pauseparam)))
         return -EFAULT;
     return 0;
@@ -16262,25 +16625,25 @@ static int ethtool_get_pauseparam(struct net_device *dev, void *useraddr)
 static int ethtool_set_pauseparam(struct net_device *dev, void *useraddr)
 {
     struct ethtool_pauseparam pauseparam;
-    
+
     if (!ethtool_ops->get_pauseparam)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&pauseparam, useraddr, sizeof(pauseparam)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_pauseparam(dev, &pauseparam);
 }
 
 static int ethtool_get_rx_csum(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata = { ETHTOOL_GRXCSUM };
-    
+
     if (!ethtool_ops->get_rx_csum)
         return -EOPNOTSUPP;
-    
+
     edata.data = ethtool_ops->get_rx_csum(dev);
-    
+
     if (copy_to_user(useraddr, &edata, sizeof(edata)))
         return -EFAULT;
     return 0;
@@ -16289,13 +16652,13 @@ static int ethtool_get_rx_csum(struct net_device *dev, char *useraddr)
 static int ethtool_set_rx_csum(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata;
-    
+
     if (!ethtool_ops->set_rx_csum)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&edata, useraddr, sizeof(edata)))
         return -EFAULT;
-    
+
     ethtool_ops->set_rx_csum(dev, edata.data);
     return 0;
 }
@@ -16303,12 +16666,12 @@ static int ethtool_set_rx_csum(struct net_device *dev, char *useraddr)
 static int ethtool_get_tx_csum(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata = { ETHTOOL_GTXCSUM };
-    
+
     if (!ethtool_ops->get_tx_csum)
         return -EOPNOTSUPP;
-    
+
     edata.data = ethtool_ops->get_tx_csum(dev);
-    
+
     if (copy_to_user(useraddr, &edata, sizeof(edata)))
         return -EFAULT;
     return 0;
@@ -16317,25 +16680,25 @@ static int ethtool_get_tx_csum(struct net_device *dev, char *useraddr)
 static int ethtool_set_tx_csum(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata;
-    
+
     if (!ethtool_ops->set_tx_csum)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&edata, useraddr, sizeof(edata)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_tx_csum(dev, edata.data);
 }
 
 static int ethtool_get_sg(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata = { ETHTOOL_GSG };
-    
+
     if (!ethtool_ops->get_sg)
         return -EOPNOTSUPP;
-    
+
     edata.data = ethtool_ops->get_sg(dev);
-    
+
     if (copy_to_user(useraddr, &edata, sizeof(edata)))
         return -EFAULT;
     return 0;
@@ -16344,25 +16707,25 @@ static int ethtool_get_sg(struct net_device *dev, char *useraddr)
 static int ethtool_set_sg(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata;
-    
+
     if (!ethtool_ops->set_sg)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&edata, useraddr, sizeof(edata)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_sg(dev, edata.data);
 }
 
 static int ethtool_get_tso(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata = { ETHTOOL_GTSO };
-    
+
     if (!ethtool_ops->get_tso)
         return -EOPNOTSUPP;
-    
+
     edata.data = ethtool_ops->get_tso(dev);
-    
+
     if (copy_to_user(useraddr, &edata, sizeof(edata)))
         return -EFAULT;
     return 0;
@@ -16371,13 +16734,13 @@ static int ethtool_get_tso(struct net_device *dev, char *useraddr)
 static int ethtool_set_tso(struct net_device *dev, char *useraddr)
 {
     struct ethtool_value edata;
-    
+
     if (!ethtool_ops->set_tso)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&edata, useraddr, sizeof(edata)))
         return -EFAULT;
-    
+
     return ethtool_ops->set_tso(dev, edata.data);
 }
 
@@ -16387,20 +16750,20 @@ static int ethtool_self_test(struct net_device *dev, char *useraddr)
     struct ethtool_ops *ops = ethtool_ops;
     u64 *data;
     int ret;
-    
+
     if (!ops->self_test || !ops->self_test_count)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&test, useraddr, sizeof(test)))
         return -EFAULT;
-    
+
     test.len = ops->self_test_count(dev);
     data = kmalloc(test.len * sizeof(u64), GFP_USER);
     if (!data)
         return -ENOMEM;
-    
+
     ops->self_test(dev, &test, data);
-    
+
     ret = -EFAULT;
     if (copy_to_user(useraddr, &test, sizeof(test)))
         goto out;
@@ -16408,7 +16771,7 @@ static int ethtool_self_test(struct net_device *dev, char *useraddr)
     if (copy_to_user(useraddr, data, test.len * sizeof(u64)))
         goto out;
     ret = 0;
-    
+
 out:
     kfree(data);
     return ret;
@@ -16420,34 +16783,34 @@ static int ethtool_get_strings(struct net_device *dev, void *useraddr)
     struct ethtool_ops *ops = ethtool_ops;
     u8 *data;
     int ret;
-    
+
     if (!ops->get_strings)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&gstrings, useraddr, sizeof(gstrings)))
         return -EFAULT;
-    
+
     switch (gstrings.string_set) {
-        case ETH_SS_TEST:
-            if (!ops->self_test_count)
-                return -EOPNOTSUPP;
-            gstrings.len = ops->self_test_count(dev);
-            break;
-        case ETH_SS_STATS:
-            if (!ops->get_stats_count)
-                return -EOPNOTSUPP;
-            gstrings.len = ops->get_stats_count(dev);
-            break;
-        default:
-            return -EINVAL;
+    case ETH_SS_TEST:
+        if (!ops->self_test_count)
+            return -EOPNOTSUPP;
+        gstrings.len = ops->self_test_count(dev);
+        break;
+    case ETH_SS_STATS:
+        if (!ops->get_stats_count)
+            return -EOPNOTSUPP;
+        gstrings.len = ops->get_stats_count(dev);
+        break;
+    default:
+        return -EINVAL;
     }
-    
+
     data = kmalloc(gstrings.len * ETH_GSTRING_LEN, GFP_USER);
     if (!data)
         return -ENOMEM;
-    
+
     ops->get_strings(dev, gstrings.string_set, data);
-    
+
     ret = -EFAULT;
     if (copy_to_user(useraddr, &gstrings, sizeof(gstrings)))
         goto out;
@@ -16455,7 +16818,7 @@ static int ethtool_get_strings(struct net_device *dev, void *useraddr)
     if (copy_to_user(useraddr, data, gstrings.len * ETH_GSTRING_LEN))
         goto out;
     ret = 0;
-    
+
 out:
     kfree(data);
     return ret;
@@ -16464,13 +16827,13 @@ out:
 static int ethtool_phys_id(struct net_device *dev, void *useraddr)
 {
     struct ethtool_value id;
-    
+
     if (!ethtool_ops->phys_id)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&id, useraddr, sizeof(id)))
         return -EFAULT;
-    
+
     return ethtool_ops->phys_id(dev, id.data);
 }
 
@@ -16480,20 +16843,20 @@ static int ethtool_get_stats(struct net_device *dev, void *useraddr)
     struct ethtool_ops *ops = ethtool_ops;
     u64 *data;
     int ret;
-    
+
     if (!ops->get_ethtool_stats || !ops->get_stats_count)
         return -EOPNOTSUPP;
-    
+
     if (copy_from_user(&stats, useraddr, sizeof(stats)))
         return -EFAULT;
-    
+
     stats.n_stats = ops->get_stats_count(dev);
     data = kmalloc(stats.n_stats * sizeof(u64), GFP_USER);
     if (!data)
         return -ENOMEM;
-    
+
     ops->get_ethtool_stats(dev, &stats, data);
-    
+
     ret = -EFAULT;
     if (copy_to_user(useraddr, &stats, sizeof(stats)))
         goto out;
@@ -16501,7 +16864,7 @@ static int ethtool_get_stats(struct net_device *dev, void *useraddr)
     if (copy_to_user(useraddr, data, stats.n_stats * sizeof(u64)))
         goto out;
     ret = 0;
-    
+
 out:
     kfree(data);
     return ret;
@@ -16512,85 +16875,85 @@ static int ethtool_ioctl(struct ifreq *ifr)
     struct net_device *dev = __dev_get_by_name(ifr->ifr_name);
     void *useraddr = (void *) ifr->ifr_data;
     u32 ethcmd;
-    
+
     /*
      * XXX: This can be pushed down into the ethtool_* handlers that
      * need it.  Keep existing behaviour for the moment.
      */
     if (!capable(CAP_NET_ADMIN))
         return -EPERM;
-    
+
     if (!dev || !netif_device_present(dev))
         return -ENODEV;
-    
+
     if (copy_from_user(&ethcmd, useraddr, sizeof (ethcmd)))
         return -EFAULT;
-    
+
     switch (ethcmd) {
-        case ETHTOOL_GSET:
-            return ethtool_get_settings(dev, useraddr);
-        case ETHTOOL_SSET:
-            return ethtool_set_settings(dev, useraddr);
-        case ETHTOOL_GDRVINFO:
-            return ethtool_get_drvinfo(dev, useraddr);
-        case ETHTOOL_GREGS:
-            return ethtool_get_regs(dev, useraddr);
-        case ETHTOOL_GWOL:
-            return ethtool_get_wol(dev, useraddr);
-        case ETHTOOL_SWOL:
-            return ethtool_set_wol(dev, useraddr);
-        case ETHTOOL_GMSGLVL:
-            return ethtool_get_msglevel(dev, useraddr);
-        case ETHTOOL_SMSGLVL:
-            return ethtool_set_msglevel(dev, useraddr);
-        case ETHTOOL_NWAY_RST:
-            return ethtool_nway_reset(dev);
-        case ETHTOOL_GLINK:
-            return ethtool_get_link(dev, useraddr);
-        case ETHTOOL_GEEPROM:
-            return ethtool_get_eeprom(dev, useraddr);
-        case ETHTOOL_SEEPROM:
-            return ethtool_set_eeprom(dev, useraddr);
-        case ETHTOOL_GCOALESCE:
-            return ethtool_get_coalesce(dev, useraddr);
-        case ETHTOOL_SCOALESCE:
-            return ethtool_set_coalesce(dev, useraddr);
-        case ETHTOOL_GRINGPARAM:
-            return ethtool_get_ringparam(dev, useraddr);
-        case ETHTOOL_SRINGPARAM:
-            return ethtool_set_ringparam(dev, useraddr);
-        case ETHTOOL_GPAUSEPARAM:
-            return ethtool_get_pauseparam(dev, useraddr);
-        case ETHTOOL_SPAUSEPARAM:
-            return ethtool_set_pauseparam(dev, useraddr);
-        case ETHTOOL_GRXCSUM:
-            return ethtool_get_rx_csum(dev, useraddr);
-        case ETHTOOL_SRXCSUM:
-            return ethtool_set_rx_csum(dev, useraddr);
-        case ETHTOOL_GTXCSUM:
-            return ethtool_get_tx_csum(dev, useraddr);
-        case ETHTOOL_STXCSUM:
-            return ethtool_set_tx_csum(dev, useraddr);
-        case ETHTOOL_GSG:
-            return ethtool_get_sg(dev, useraddr);
-        case ETHTOOL_SSG:
-            return ethtool_set_sg(dev, useraddr);
-        case ETHTOOL_GTSO:
-            return ethtool_get_tso(dev, useraddr);
-        case ETHTOOL_STSO:
-            return ethtool_set_tso(dev, useraddr);
-        case ETHTOOL_TEST:
-            return ethtool_self_test(dev, useraddr);
-        case ETHTOOL_GSTRINGS:
-            return ethtool_get_strings(dev, useraddr);
-        case ETHTOOL_PHYS_ID:
-            return ethtool_phys_id(dev, useraddr);
-        case ETHTOOL_GSTATS:
-            return ethtool_get_stats(dev, useraddr);
-        default:
-            return -EOPNOTSUPP;
+    case ETHTOOL_GSET:
+        return ethtool_get_settings(dev, useraddr);
+    case ETHTOOL_SSET:
+        return ethtool_set_settings(dev, useraddr);
+    case ETHTOOL_GDRVINFO:
+        return ethtool_get_drvinfo(dev, useraddr);
+    case ETHTOOL_GREGS:
+        return ethtool_get_regs(dev, useraddr);
+    case ETHTOOL_GWOL:
+        return ethtool_get_wol(dev, useraddr);
+    case ETHTOOL_SWOL:
+        return ethtool_set_wol(dev, useraddr);
+    case ETHTOOL_GMSGLVL:
+        return ethtool_get_msglevel(dev, useraddr);
+    case ETHTOOL_SMSGLVL:
+        return ethtool_set_msglevel(dev, useraddr);
+    case ETHTOOL_NWAY_RST:
+        return ethtool_nway_reset(dev);
+    case ETHTOOL_GLINK:
+        return ethtool_get_link(dev, useraddr);
+    case ETHTOOL_GEEPROM:
+        return ethtool_get_eeprom(dev, useraddr);
+    case ETHTOOL_SEEPROM:
+        return ethtool_set_eeprom(dev, useraddr);
+    case ETHTOOL_GCOALESCE:
+        return ethtool_get_coalesce(dev, useraddr);
+    case ETHTOOL_SCOALESCE:
+        return ethtool_set_coalesce(dev, useraddr);
+    case ETHTOOL_GRINGPARAM:
+        return ethtool_get_ringparam(dev, useraddr);
+    case ETHTOOL_SRINGPARAM:
+        return ethtool_set_ringparam(dev, useraddr);
+    case ETHTOOL_GPAUSEPARAM:
+        return ethtool_get_pauseparam(dev, useraddr);
+    case ETHTOOL_SPAUSEPARAM:
+        return ethtool_set_pauseparam(dev, useraddr);
+    case ETHTOOL_GRXCSUM:
+        return ethtool_get_rx_csum(dev, useraddr);
+    case ETHTOOL_SRXCSUM:
+        return ethtool_set_rx_csum(dev, useraddr);
+    case ETHTOOL_GTXCSUM:
+        return ethtool_get_tx_csum(dev, useraddr);
+    case ETHTOOL_STXCSUM:
+        return ethtool_set_tx_csum(dev, useraddr);
+    case ETHTOOL_GSG:
+        return ethtool_get_sg(dev, useraddr);
+    case ETHTOOL_SSG:
+        return ethtool_set_sg(dev, useraddr);
+    case ETHTOOL_GTSO:
+        return ethtool_get_tso(dev, useraddr);
+    case ETHTOOL_STSO:
+        return ethtool_set_tso(dev, useraddr);
+    case ETHTOOL_TEST:
+        return ethtool_self_test(dev, useraddr);
+    case ETHTOOL_GSTRINGS:
+        return ethtool_get_strings(dev, useraddr);
+    case ETHTOOL_PHYS_ID:
+        return ethtool_phys_id(dev, useraddr);
+    case ETHTOOL_GSTATS:
+        return ethtool_get_stats(dev, useraddr);
+    default:
+        return -EOPNOTSUPP;
     }
-    
+
     return -EOPNOTSUPP;
 }
 #endif //ETHTOOL_OPS_COMPAT
@@ -16604,95 +16967,105 @@ rtl8168_do_ioctl(struct net_device *dev,
     struct mii_ioctl_data *data = if_mii(ifr);
     int ret;
     unsigned long flags;
-    
+
     ret = 0;
     switch (cmd) {
-        case SIOCGMIIPHY:
-            data->phy_id = 32; /* Internal PHY */
-            break;
-            
-        case SIOCGMIIREG:
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0000);
-            data->val_out = mdio_read(tp, data->reg_num);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
-        case SIOCSMIIREG:
-            if (!capable(CAP_NET_ADMIN))
-                return -EPERM;
-            spin_lock_irqsave(&tp->phy_lock, flags);
-            mdio_write(tp, 0x1F, 0x0000);
-            mdio_write(tp, data->reg_num, data->val_in);
-            spin_unlock_irqrestore(&tp->phy_lock, flags);
-            break;
-            
+    case SIOCGMIIPHY:
+        data->phy_id = 32; /* Internal PHY */
+        break;
+
+    case SIOCGMIIREG:
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0000);
+        data->val_out = mdio_read(tp, data->reg_num);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
+    case SIOCSMIIREG:
+        if (!capable(CAP_NET_ADMIN))
+            return -EPERM;
+        spin_lock_irqsave(&tp->phy_lock, flags);
+        mdio_write(tp, 0x1F, 0x0000);
+        mdio_write(tp, data->reg_num, data->val_in);
+        spin_unlock_irqrestore(&tp->phy_lock, flags);
+        break;
+
 #ifdef ETHTOOL_OPS_COMPAT
-        case SIOCETHTOOL:
-            ret = ethtool_ioctl(ifr);
-            break;
+    case SIOCETHTOOL:
+        ret = ethtool_ioctl(ifr);
+        break;
 #endif
-        case SIOCDEVPRIVATE_RTLASF:
-            if (!netif_running(dev)) {
-                ret = -ENODEV;
-                break;
-            }
-            
-            ret = rtl8168_asf_ioctl(dev, ifr);
+    case SIOCDEVPRIVATE_RTLASF:
+        if (!netif_running(dev)) {
+            ret = -ENODEV;
             break;
-            
-        case SIOCRTLTOOL:
-            ret = rtltool_ioctl(tp, ifr);
+        }
+
+        ret = rtl8168_asf_ioctl(dev, ifr);
+        break;
+
+#ifdef ENABLE_DASH_SUPPORT
+    case SIOCDEVPRIVATE_RTLDASH:
+        if (!netif_running(dev)) {
+            ret = -ENODEV;
             break;
-            
-        default:
-            ret = -EOPNOTSUPP;
-            break;
+        }
+
+        ret = rtl8168_dash_ioctl(dev, ifr);
+        break;
+#endif
+
+    case SIOCRTLTOOL:
+        ret = rtltool_ioctl(tp, ifr);
+        break;
+
+    default:
+        ret = -EOPNOTSUPP;
+        break;
     }
-    
+
     return ret;
 }
 
-#endif /* DISABLED_CODE */
-
-void
+static void
 rtl8168_phy_power_up (struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     u32 csi_tmp;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     spin_lock_irqsave(&tp->phy_lock, flags);
     mdio_write(tp, 0x1F, 0x0000);
     switch (tp->mcfg) {
-        case CFG_METHOD_1:
-        case CFG_METHOD_2:
-        case CFG_METHOD_3:
-        case CFG_METHOD_4:
-        case CFG_METHOD_5:
-        case CFG_METHOD_6:
-        case CFG_METHOD_7:
-        case CFG_METHOD_8:
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-            mdio_write(tp, 0x0E, 0x0000);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_27:
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x1AB, 1, ERIAR_ExGMAC);
-            csi_tmp |=  ( BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7 );
-            rtl8168_eri_write(ioaddr, 0x1AB, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
-        default:
-            break;
+    case CFG_METHOD_1:
+    case CFG_METHOD_2:
+    case CFG_METHOD_3:
+    case CFG_METHOD_4:
+    case CFG_METHOD_5:
+    case CFG_METHOD_6:
+    case CFG_METHOD_7:
+    case CFG_METHOD_8:
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+        mdio_write(tp, 0x0E, 0x0000);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x1AB, 1, ERIAR_ExGMAC);
+        csi_tmp |=  ( BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7 );
+        rtl8168_eri_write(ioaddr, 0x1AB, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
+    default:
+        break;
     }
     mdio_write(tp, MII_BMCR, BMCR_ANENABLE);
     spin_unlock_irqrestore(&tp->phy_lock, flags);
@@ -16704,59 +17077,58 @@ rtl8168_phy_power_down (struct net_device *dev)
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
     u32 csi_tmp;
-    //unsigned long flags;
-    
+    unsigned long flags;
+
     spin_lock_irqsave(&tp->phy_lock, flags);
     mdio_write(tp, 0x1F, 0x0000);
     switch (tp->mcfg) {
-        case CFG_METHOD_1:
-        case CFG_METHOD_2:
-        case CFG_METHOD_3:
-        case CFG_METHOD_4:
-        case CFG_METHOD_5:
-        case CFG_METHOD_6:
-        case CFG_METHOD_7:
-        case CFG_METHOD_8:
-        case CFG_METHOD_9:
-        case CFG_METHOD_10:
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-            mdio_write(tp, 0x0E, 0x0200);
-            mdio_write(tp, MII_BMCR, BMCR_PDOWN);
-            break;
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-            mdio_write(tp, MII_BMCR, BMCR_ANENABLE | BMCR_PDOWN);
-            break;
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-            mdio_write(tp, MII_BMCR, BMCR_ANENABLE | BMCR_PDOWN);
-            
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x1AB, 1, ERIAR_ExGMAC);
-            csi_tmp &= ~( BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7 );
-            rtl8168_eri_write(ioaddr, 0x1AB, 1, csi_tmp, ERIAR_ExGMAC);
-            
-            RTL_W8(0xD0, RTL_R8(0xD0) & ~BIT_6);
-            break;
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_27:
-            mdio_write(tp, MII_BMCR, BMCR_ANENABLE | BMCR_PDOWN);
-            
-            csi_tmp = rtl8168_eri_read(ioaddr, 0x1AB, 1, ERIAR_ExGMAC);
-            csi_tmp &= ~( BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7 );
-            rtl8168_eri_write(ioaddr, 0x1AB, 1, csi_tmp, ERIAR_ExGMAC);
-            break;
-        default:
-            mdio_write(tp, MII_BMCR, BMCR_PDOWN);
-            break;
+    case CFG_METHOD_1:
+    case CFG_METHOD_2:
+    case CFG_METHOD_3:
+    case CFG_METHOD_4:
+    case CFG_METHOD_5:
+    case CFG_METHOD_6:
+    case CFG_METHOD_7:
+    case CFG_METHOD_8:
+    case CFG_METHOD_9:
+    case CFG_METHOD_10:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+        mdio_write(tp, 0x0E, 0x0200);
+        mdio_write(tp, MII_BMCR, BMCR_PDOWN);
+        break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+        mdio_write(tp, MII_BMCR, BMCR_ANENABLE | BMCR_PDOWN);
+        break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+        mdio_write(tp, MII_BMCR, BMCR_ANENABLE | BMCR_PDOWN);
+
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x1AB, 1, ERIAR_ExGMAC);
+        csi_tmp &= ~( BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7 );
+        rtl8168_eri_write(ioaddr, 0x1AB, 1, csi_tmp, ERIAR_ExGMAC);
+
+        RTL_W8(0xD0, RTL_R8(0xD0) & ~BIT_6);
+        break;
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        mdio_write(tp, MII_BMCR, BMCR_ANENABLE | BMCR_PDOWN);
+
+        csi_tmp = rtl8168_eri_read(ioaddr, 0x1AB, 1, ERIAR_ExGMAC);
+        csi_tmp &= ~( BIT_2 | BIT_3 | BIT_4 | BIT_5 | BIT_6 | BIT_7 );
+        rtl8168_eri_write(ioaddr, 0x1AB, 1, csi_tmp, ERIAR_ExGMAC);
+        break;
+    default:
+        mdio_write(tp, MII_BMCR, BMCR_PDOWN);
+        break;
     }
     spin_unlock_irqrestore(&tp->phy_lock, flags);
 }
-
-#if DISABLED_CODE
 
 static int __devinit
 rtl8168_init_board(struct pci_dev *pdev,
@@ -16767,9 +17139,9 @@ rtl8168_init_board(struct pci_dev *pdev,
     struct net_device *dev;
     struct rtl8168_private *tp;
     int rc = -ENOMEM, i, pm_cap;
-    
+
     assert(ioaddr_out != NULL);
-    
+
     /* dev zeroed in alloc_etherdev */
     dev = alloc_etherdev(sizeof (*tp));
     if (dev == NULL) {
@@ -16779,19 +17151,19 @@ rtl8168_init_board(struct pci_dev *pdev,
 #endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
         goto err_out;
     }
-    
+
     SET_MODULE_OWNER(dev);
     SET_NETDEV_DEV(dev, &pdev->dev);
     tp = netdev_priv(dev);
     tp->dev = dev;
     tp->msg_enable = netif_msg_init(debug.msg_enable, R8168_MSG_DEFAULT);
-    
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
     if (!aspm)
         pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
                                PCIE_LINK_STATE_CLKPM);
 #endif
-    
+
     /* enable device (incl. PCI PM wakeup and hotplug setup) */
     rc = pci_enable_device(pdev);
     if (rc < 0) {
@@ -16801,16 +17173,16 @@ rtl8168_init_board(struct pci_dev *pdev,
 #endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
         goto err_out_free_dev;
     }
-    
+
     rc = pci_set_mwi(pdev);
     if (rc < 0)
         goto err_out_disable;
-    
+
     /* save power state before pci_enable_device overwrites it */
     pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
     if (pm_cap) {
         u16 pwr_command;
-        
+
         pci_read_config_word(pdev, pm_cap + PCI_PM_CTRL, &pwr_command);
     } else {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
@@ -16820,9 +17192,9 @@ rtl8168_init_board(struct pci_dev *pdev,
 #else
         printk("PowerManagement capability not found.\n");
 #endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
-        
+
     }
-    
+
     /* make sure PCI base addr 1 is MMIO */
     if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
@@ -16841,7 +17213,7 @@ rtl8168_init_board(struct pci_dev *pdev,
         rc = -ENODEV;
         goto err_out_mwi;
     }
-    
+
     rc = pci_request_regions(pdev, MODULENAME);
     if (rc < 0) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
@@ -16850,9 +17222,9 @@ rtl8168_init_board(struct pci_dev *pdev,
 #endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
         goto err_out_mwi;
     }
-    
+
     if ((sizeof(dma_addr_t) > 4) &&
-        !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) && use_dac) {
+        !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
         dev->features |= NETIF_F_HIGHDMA;
     } else {
         rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
@@ -16864,9 +17236,9 @@ rtl8168_init_board(struct pci_dev *pdev,
             goto err_out_free_res;
         }
     }
-    
+
     pci_set_master(pdev);
-    
+
     /* ioremap MMIO region */
     ioaddr = ioremap(pci_resource_start(pdev, 2), R8168_REGS_SIZE);
     if (ioaddr == NULL) {
@@ -16877,17 +17249,17 @@ rtl8168_init_board(struct pci_dev *pdev,
         rc = -EIO;
         goto err_out_free_res;
     }
-    
+
     /* Identify chip attached to board */
     rtl8168_get_mac_version(tp, ioaddr);
-    
+
     rtl8168_print_mac_version(tp);
-    
+
     for (i = ARRAY_SIZE(rtl_chip_info) - 1; i >= 0; i--) {
         if (tp->mcfg == rtl_chip_info[i].mcfg)
             break;
     }
-    
+
     if (i < 0) {
         /* Unknown chip: assume array element #0, original RTL-8168 */
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
@@ -16898,23 +17270,23 @@ rtl8168_init_board(struct pci_dev *pdev,
 #endif //LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
         i++;
     }
-    
+
     tp->chipset = i;
-    
+
     *ioaddr_out = ioaddr;
     *dev_out = dev;
 out:
     return rc;
-    
+
 err_out_free_res:
     pci_release_regions(pdev);
-    
+
 err_out_mwi:
     pci_clear_mwi(pdev);
-    
+
 err_out_disable:
     pci_disable_device(pdev);
-    
+
 err_out_free_dev:
     free_netdev(dev);
 err_out:
@@ -16922,6 +17294,8 @@ err_out:
     *dev_out = NULL;
     goto out;
 }
+
+#define PCI_DEVICE_SERIAL_NUMBER (0x0164)
 
 static void
 rtl8168_esd_timer(unsigned long __opaque)
@@ -16945,103 +17319,103 @@ rtl8168_esd_timer(unsigned long __opaque)
     u16 resv_0x24_h;
     u16 resv_0x2c_h;
     u16 resv_0x2c_l;
-    u32 pci_nvidia_geforce_6200;
-    u32 pci_nvidia_geforce__6250_1;
-    
+    u32 pci_sn_l;
+    u32 pci_sn_h;
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     tp->esd_flag = 0;
-    
+
     pci_read_config_byte(pdev, PCI_COMMAND, &cmd);
     if (cmd != tp->pci_cfg_space.cmd) {
         pci_write_config_byte(pdev, PCI_COMMAND, tp->pci_cfg_space.cmd);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_0, &io_base_l);
     if (io_base_l != tp->pci_cfg_space.io_base_l) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_0, tp->pci_cfg_space.io_base_l);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_2, &mem_base_l);
     if (mem_base_l != tp->pci_cfg_space.mem_base_l) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_2, tp->pci_cfg_space.mem_base_l);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_2 + 2, &mem_base_h);
     if (mem_base_h!= tp->pci_cfg_space.mem_base_h) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_2 + 2, tp->pci_cfg_space.mem_base_h);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_3, &resv_0x1c_l);
     if (resv_0x1c_l != tp->pci_cfg_space.resv_0x1c_l) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_3, tp->pci_cfg_space.resv_0x1c_l);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_3 + 2, &resv_0x1c_h);
     if (resv_0x1c_h != tp->pci_cfg_space.resv_0x1c_h) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_3 + 2, tp->pci_cfg_space.resv_0x1c_h);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_4, &resv_0x20_l);
     if (resv_0x20_l != tp->pci_cfg_space.resv_0x20_l) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_4, tp->pci_cfg_space.resv_0x20_l);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_4 + 2, &resv_0x20_h);
     if (resv_0x20_h != tp->pci_cfg_space.resv_0x20_h) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_4 + 2, tp->pci_cfg_space.resv_0x20_h);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_5, &resv_0x24_l);
     if (resv_0x24_l != tp->pci_cfg_space.resv_0x24_l) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_5, tp->pci_cfg_space.resv_0x24_l);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_BASE_ADDRESS_5 + 2, &resv_0x24_h);
     if (resv_0x24_h != tp->pci_cfg_space.resv_0x24_h) {
         pci_write_config_word(pdev, PCI_BASE_ADDRESS_5 + 2, tp->pci_cfg_space.resv_0x24_h);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, &ilr);
     if (ilr != tp->pci_cfg_space.ilr) {
         pci_write_config_byte(pdev, PCI_INTERRUPT_LINE, tp->pci_cfg_space.ilr);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &resv_0x2c_l);
     if (resv_0x2c_l != tp->pci_cfg_space.resv_0x2c_l) {
         pci_write_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, tp->pci_cfg_space.resv_0x2c_l);
         tp->esd_flag = 1;
     }
-    
+
     pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID + 2, &resv_0x2c_h);
     if (resv_0x2c_h != tp->pci_cfg_space.resv_0x2c_h) {
         pci_write_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID + 2, tp->pci_cfg_space.resv_0x2c_h);
         tp->esd_flag = 1;
     }
-    
-    pci_nvidia_geforce_6200 = rtl8168_csi_read(tp, PCI_DEVICE_ID_NVIDIA_GEFORCE_GO_6200);
-    if (pci_nvidia_geforce_6200 != tp->pci_cfg_space.pci_nvidia_geforce_6200) {
-        rtl8168_csi_write(tp, PCI_DEVICE_ID_NVIDIA_GEFORCE_GO_6200, tp->pci_cfg_space.pci_nvidia_geforce_6200);
+
+    pci_sn_l = rtl8168_csi_read(tp, PCI_DEVICE_SERIAL_NUMBER);
+    if (pci_sn_l != tp->pci_cfg_space.pci_sn_l) {
+        rtl8168_csi_write(tp, PCI_DEVICE_SERIAL_NUMBER, tp->pci_cfg_space.pci_sn_l);
         tp->esd_flag = 1;
     }
-    
-    pci_nvidia_geforce__6250_1 = rtl8168_csi_read(tp, PCI_DEVICE_ID_NVIDIA_GEFORCE_GO_6250_1);
-    if (pci_nvidia_geforce__6250_1 != tp->pci_cfg_space.pci_nvidia_geforce__6250_1) {
-        rtl8168_csi_write(tp, PCI_DEVICE_ID_NVIDIA_GEFORCE_GO_6250_1, tp->pci_cfg_space.pci_nvidia_geforce__6250_1);
+
+    pci_sn_h = rtl8168_csi_read(tp, PCI_DEVICE_SERIAL_NUMBER + 4);
+    if (pci_sn_h != tp->pci_cfg_space.pci_sn_h) {
+        rtl8168_csi_write(tp, PCI_DEVICE_SERIAL_NUMBER + 4, tp->pci_cfg_space.pci_sn_h);
         tp->esd_flag = 1;
     }
-    
+
     if (tp->esd_flag != 0) {
         netif_stop_queue(dev);
         netif_carrier_off(dev);
@@ -17057,7 +17431,7 @@ rtl8168_esd_timer(unsigned long __opaque)
         tp->esd_flag = 0;
     }
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     mod_timer(timer, jiffies + timeout);
 }
 
@@ -17068,11 +17442,11 @@ rtl8168_link_timer(unsigned long __opaque)
     struct rtl8168_private *tp = netdev_priv(dev);
     struct timer_list *timer = &tp->link_timer;
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
     rtl8168_check_link_status(dev);
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     mod_timer(timer, jiffies + RTL8168_LINK_TIMEOUT);
 }
 
@@ -17080,14 +17454,14 @@ rtl8168_link_timer(unsigned long __opaque)
 static unsigned rtl8168_try_msi(struct pci_dev *pdev, void __iomem *ioaddr)
 {
     unsigned msi = 0;
-    
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13)
     if (pci_enable_msi(pdev))
         dev_info(&pdev->dev, "no MSI. Back to INTx.\n");
     else
         msi |= RTL_FEATURE_MSI;
 #endif
-    
+
     return msi;
 }
 
@@ -17138,46 +17512,46 @@ rtl8168_init_one(struct pci_dev *pdev,
     struct rtl8168_private *tp;
     void __iomem *ioaddr = NULL;
     static int board_idx = -1;
-    
+
     int rc;
-    
+
     assert(pdev != NULL);
     assert(ent != NULL);
-    
+
     board_idx++;
-    
+
     if (netif_msg_drv(&debug))
         printk(KERN_INFO "%s Gigabit Ethernet driver %s loaded\n",
                MODULENAME, RTL8168_VERSION);
-    
+
     rc = rtl8168_init_board(pdev, &dev, &ioaddr);
     if (rc)
         return rc;
-    
+
     tp = netdev_priv(dev);
     assert(ioaddr != NULL);
-    
+
     tp->mmio_addr = ioaddr;
     tp->set_speed = rtl8168_set_speed_xmii;
     tp->get_settings = rtl8168_gset_xmii;
     tp->phy_reset_enable = rtl8168_xmii_reset_enable;
     tp->phy_reset_pending = rtl8168_xmii_reset_pending;
     tp->link_ok = rtl8168_xmii_link_ok;
-    
+
     tp->features |= rtl8168_try_msi(pdev, ioaddr);
-    
+
     RTL_NET_DEVICE_OPS(rtl8168_netdev_ops);
-    
+
     SET_ETHTOOL_OPS(dev, &rtl8168_ethtool_ops);
-    
+
     dev->watchdog_timeo = RTL8168_TX_TIMEOUT;
     dev->irq = pdev->irq;
     dev->base_addr = (unsigned long) ioaddr;
-    
+
 #ifdef CONFIG_R8168_NAPI
     RTL_NAPI_CONFIG(dev, tp, rtl8168_poll, R8168_NAPI_WEIGHT);
 #endif
-    
+
 #ifdef CONFIG_R8168_VLAN
     if (tp->mcfg != CFG_METHOD_DEFAULT) {
         dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
@@ -17186,7 +17560,7 @@ rtl8168_init_one(struct pci_dev *pdev,
 #endif //LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
     }
 #endif
-    
+
     tp->cp_cmd |= RTL_R16(CPlusCmd);
     if (tp->mcfg != CFG_METHOD_DEFAULT) {
         dev->features |= NETIF_F_IP_CSUM;
@@ -17195,40 +17569,45 @@ rtl8168_init_one(struct pci_dev *pdev,
 #else
         dev->features |= NETIF_F_RXCSUM | NETIF_F_SG;
         dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
-        NETIF_F_RXCSUM | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+                           NETIF_F_RXCSUM | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
         dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
-        NETIF_F_HIGHDMA;
+                             NETIF_F_HIGHDMA;
 #endif
     }
-    
+
     tp->pci_dev = pdev;
-    
+
     spin_lock_init(&tp->lock);
-    
+
     spin_lock_init(&tp->phy_lock);
-    
+
     rtl8168_init_software_variable(dev);
-    
+
+#ifdef ENABLE_DASH_SUPPORT
+    if(tp->DASH)
+        AllocateDashShareMemory(dev);
+#endif
+
     rtl8168_exit_oob(dev);
-    
+
     rtl8168_hw_init(dev);
-    
+
     rtl8168_hw_reset(dev);
-    
+
     /* Get production from EEPROM */
     if (((tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 || tp->mcfg == CFG_METHOD_25) && (mac_ocp_read(tp, 0xDC00) & BIT_3)) ||
         ((tp->mcfg == CFG_METHOD_26) && (mac_ocp_read(tp, 0xDC00) & BIT_4)))
         tp->eeprom_type = EEPROM_TYPE_NONE;
     else
         rtl_eeprom_type(tp);
-    
+
     if (tp->eeprom_type == EEPROM_TYPE_93C46 || tp->eeprom_type == EEPROM_TYPE_93C56)
         rtl_set_eeprom_sel_low(ioaddr);
-    
+
     rtl8168_get_mac_address(dev);
-    
+
     pci_set_drvdata(pdev, dev);
-    
+
     if (netif_msg_probe(tp)) {
         printk(KERN_INFO "%s: 0x%lx, "
                "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x, "
@@ -17239,21 +17618,21 @@ rtl8168_init_one(struct pci_dev *pdev,
                dev->dev_addr[2], dev->dev_addr[3],
                dev->dev_addr[4], dev->dev_addr[5], dev->irq);
     }
-    
+
     rtl8168_link_option(board_idx, (u8*)&autoneg, (u16*)&speed, (u8*)&duplex);
-    
+
     rc = register_netdev(dev);
     if (rc) {
         rtl8168_release_board(pdev, dev, ioaddr);
         return rc;
     }
-    
+
     printk(KERN_INFO "%s: This product is covered by one or more of the following patents: US6,570,884, US6,115,776, and US6,327,625.\n", MODULENAME);
-    
+
     netif_carrier_off(dev);
-    
+
     printk("%s", GPL_CLAIM);
-    
+
     return 0;
 }
 
@@ -17262,22 +17641,24 @@ rtl8168_remove_one(struct pci_dev *pdev)
 {
     struct net_device *dev = pci_get_drvdata(pdev);
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     assert(dev != NULL);
     assert(tp != NULL);
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_11:
-        case CFG_METHOD_12:
-        case CFG_METHOD_13:
-        case CFG_METHOD_23:
-        case CFG_METHOD_27:
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (tp->DASH)
             rtl8168_driver_stop(tp);
-            break;
+        break;
     }
-    
+
     flush_scheduled_work();
-    
+
     unregister_netdev(dev);
     rtl8168_disable_msi(pdev, tp);
     rtl8168_release_board(pdev, dev, tp->mmio_addr);
@@ -17289,7 +17670,7 @@ rtl8168_set_rxbufsize(struct rtl8168_private *tp,
                       struct net_device *dev)
 {
     unsigned int mtu = dev->mtu;
-    
+
     tp->rx_buf_sz = (mtu > ETH_DATA_LEN) ? mtu + ETH_HLEN + 8 + 1 : RX_BUF_SIZE;
 }
 
@@ -17298,11 +17679,11 @@ static int rtl8168_open(struct net_device *dev)
     struct rtl8168_private *tp = netdev_priv(dev);
     struct pci_dev *pdev = tp->pci_dev;
     int retval;
-    
+
     tp->in_open_fun = TRUE;
-    
+
     retval = -ENOMEM;
-    
+
     rtl8168_set_rxbufsize(tp, dev);
     /*
      * Rx and Tx descriptors needs 256 bytes alignment.
@@ -17312,69 +17693,69 @@ static int rtl8168_open(struct net_device *dev)
                                            &tp->TxPhyAddr);
     if (!tp->TxDescArray)
         goto out;
-    
+
     tp->RxDescArray = pci_alloc_consistent(pdev, R8168_RX_RING_BYTES,
                                            &tp->RxPhyAddr);
     if (!tp->RxDescArray)
         goto err_free_tx;
-    
+
     tp->tally_vaddr = pci_alloc_consistent(pdev, sizeof(*tp->tally_vaddr), &tp->tally_paddr);
     if (!tp->tally_vaddr)
         goto err_free_rx;
-    
+
     retval = rtl8168_init_ring(dev);
     if (retval < 0)
         goto err_free_counters;
-    
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
     INIT_WORK(&tp->task, NULL, dev);
 #else
     INIT_DELAYED_WORK(&tp->task, NULL);
 #endif
-    
+
 #ifdef  CONFIG_R8168_NAPI
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
     RTL_NAPI_ENABLE(dev, &tp->napi);
 #endif
 #endif
-    
+
     rtl8168_exit_oob(dev);
-    
+
     rtl8168_tally_counter_clear(tp);
-    
+
     rtl8168_hw_init(dev);
-    
+
     rtl8168_hw_reset(dev);
-    
+
     rtl8168_powerup_pll(dev);
-    
+
     rtl8168_hw_ephy_config(dev);
-    
+
     rtl8168_hw_phy_config(dev);
-    
+
     rtl8168_hw_start(dev);
-    
+
     rtl8168_dsm(dev, DSM_IF_UP);
-    
+
     rtl8168_set_speed(dev, autoneg, speed, duplex);
-    
+
     retval = request_irq(dev->irq, rtl8168_interrupt, (tp->features & RTL_FEATURE_MSI) ? 0 : SA_SHIRQ, dev->name, dev);
     if (retval<0)
         goto err_free_counters;
-    
+
     if (tp->esd_flag == 0)
         rtl8168_request_esd_timer(dev);
-    
+
     rtl8168_request_link_timer(dev);
-    
+
 out:
     tp->in_open_fun = FALSE;
-    
+
     return retval;
-    
+
 err_free_counters:
     pci_free_consistent(pdev, sizeof(*tp->tally_vaddr), tp->tally_vaddr, tp->tally_paddr);
-    
+
     tp->tally_vaddr = NULL;
 err_free_rx:
     pci_free_consistent(pdev, R8168_RX_RING_BYTES, tp->RxDescArray,
@@ -17387,71 +17768,68 @@ err_free_tx:
     goto out;
 }
 
-#endif  /* DISABLED_CODE */
-
-void rtl8168_dsm(struct net_device *dev, int dev_state)
+static void
+rtl8168_dsm(struct net_device *dev, int dev_state)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
-    switch (dev_state) {
-        case DSM_MAC_INIT:
-            if ((tp->mcfg == CFG_METHOD_5) || (tp->mcfg == CFG_METHOD_6)) {
-                if (RTL_R8(MACDBG) & 0x80)
-                    RTL_W8(GPIO, RTL_R8(GPIO) | GPIO_en);
-                else
-                    RTL_W8(GPIO, RTL_R8(GPIO) & ~GPIO_en);
-            }
-            
-            break;
-        case DSM_NIC_GOTO_D3:
-        case DSM_IF_DOWN:
-            if ((tp->mcfg == CFG_METHOD_5) || (tp->mcfg == CFG_METHOD_6)) {
-                if (RTL_R8(MACDBG) & 0x80)
-                    RTL_W8(GPIO, RTL_R8(GPIO) & ~GPIO_en);
-            }
-            break;
-            
-        case DSM_NIC_RESUME_D3:
-        case DSM_IF_UP:
-            if ((tp->mcfg == CFG_METHOD_5) || (tp->mcfg == CFG_METHOD_6)) {
-                if (RTL_R8(MACDBG) & 0x80)
-                    RTL_W8(GPIO, RTL_R8(GPIO) | GPIO_en);
-            }
-            
-            break;
-    }
-    
-}
 
-void set_offset70F(struct rtl8168_private *tp, u8 setting)
+    switch (dev_state) {
+    case DSM_MAC_INIT:
+        if ((tp->mcfg == CFG_METHOD_5) || (tp->mcfg == CFG_METHOD_6)) {
+            if (RTL_R8(MACDBG) & 0x80)
+                RTL_W8(GPIO, RTL_R8(GPIO) | GPIO_en);
+            else
+                RTL_W8(GPIO, RTL_R8(GPIO) & ~GPIO_en);
+        }
+
+        break;
+    case DSM_NIC_GOTO_D3:
+    case DSM_IF_DOWN:
+        if ((tp->mcfg == CFG_METHOD_5) || (tp->mcfg == CFG_METHOD_6)) {
+            if (RTL_R8(MACDBG) & 0x80)
+                RTL_W8(GPIO, RTL_R8(GPIO) & ~GPIO_en);
+        }
+        break;
+
+    case DSM_NIC_RESUME_D3:
+    case DSM_IF_UP:
+        if ((tp->mcfg == CFG_METHOD_5) || (tp->mcfg == CFG_METHOD_6)) {
+            if (RTL_R8(MACDBG) & 0x80)
+                RTL_W8(GPIO, RTL_R8(GPIO) | GPIO_en);
+        }
+
+        break;
+    }
+
+}
+static void
+set_offset70F(struct rtl8168_private *tp, u8 setting)
 {
-    
+
     u32 csi_tmp;
     u32 temp = (u32)setting;
     temp = temp << 24;
     /*set PCI configuration space offset 0x70F to setting*/
     /*When the register offset of PCI configuration space larger than 0xff, use CSI to access it.*/
-    
+
     csi_tmp = rtl8168_csi_read(tp, 0x70c) & 0x00ffffff;
     rtl8168_csi_write(tp, 0x70c, csi_tmp | temp);
 }
-
-#if DISABLED_CODE
 
 static void
 set_offset79(struct rtl8168_private *tp, u8 setting)
 {
     //Set PCI configuration space offset 0x79 to setting
-    
+
     struct pci_dev *pdev = tp->pci_dev;
     u8 device_control;
-    
+
     pci_read_config_byte(pdev, 0x79, &device_control);
     device_control &= ~0x70;
     device_control |= setting;
     pci_write_config_byte(pdev, 0x79, device_control);
-    
+
 }
 
 static void
@@ -17462,16 +17840,16 @@ rtl8168_hw_set_rx_packet_filter(struct net_device *dev)
     u32 mc_filter[2];   /* Multicast hash filter */
     int rx_mode;
     u32 tmp = 0;
-    
+
     if (dev->flags & IFF_PROMISC) {
         /* Unconditionally log net taps. */
         if (netif_msg_link(tp))
             printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n",
                    dev->name);
-        
+
         rx_mode =
-        AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
-        AcceptAllPhys;
+            AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
+            AcceptAllPhys;
         mc_filter[1] = mc_filter[0] = 0xffffffff;
     } else if ((netdev_mc_count(dev) > multicast_filter_limit)
                || (dev->flags & IFF_ALLMULTI)) {
@@ -17482,7 +17860,7 @@ rtl8168_hw_set_rx_packet_filter(struct net_device *dev)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35)
         struct dev_mc_list *mclist;
         unsigned int i;
-        
+
         rx_mode = AcceptBroadcast | AcceptMyPhys;
         mc_filter[1] = mc_filter[0] = 0;
         for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
@@ -17493,7 +17871,7 @@ rtl8168_hw_set_rx_packet_filter(struct net_device *dev)
         }
 #else
         struct netdev_hw_addr *ha;
-        
+
         rx_mode = AcceptBroadcast | AcceptMyPhys;
         mc_filter[1] = mc_filter[0] = 0;
         netdev_for_each_mc_addr(ha, dev) {
@@ -17503,14 +17881,14 @@ rtl8168_hw_set_rx_packet_filter(struct net_device *dev)
         }
 #endif
     }
-    
+
     tmp = mc_filter[0];
     mc_filter[0] = swab32(mc_filter[1]);
     mc_filter[1] = swab32(tmp);
-    
+
     tp->rtl8168_rx_config = rtl_chip_info[tp->chipset].RCR_Cfg;
     tmp = tp->rtl8168_rx_config | rx_mode | (RTL_R32(RxConfig) & rtl_chip_info[tp->chipset].RxConfigMask);
-    
+
     RTL_W32(RxConfig, tmp);
     RTL_W32(MAR0 + 0, mc_filter[0]);
     RTL_W32(MAR0 + 4, mc_filter[1]);
@@ -17521,11 +17899,11 @@ rtl8168_set_rx_mode(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned long flags;
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     rtl8168_hw_set_rx_packet_filter(dev);
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
 }
 
@@ -17539,47 +17917,51 @@ rtl8168_hw_start(struct net_device *dev)
     u16 mac_ocp_data;
     u32 csi_tmp;
     unsigned long flags;
-    
+
     netif_stop_queue(dev);
-    
+
     RTL_W32(RxConfig, (RX_DMA_BURST << RxCfgDMAShift));
-    
+
     rtl8168_hw_reset(dev);
-    
+
     rtl8168_rx_desc_offset0_init(tp, 1);
-    
+
     RTL_W8(Cfg9346, Cfg9346_Unlock);
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            RTL_W8(0xF1, RTL_R8(0xF1) & ~BIT_7);
-            RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
-            RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        RTL_W8(0xF1, RTL_R8(0xF1) & ~BIT_7);
+        RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
+        RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
+        break;
     }
     RTL_W8(MTPS, Reserved1_data);
-    
-    tp->cp_cmd |= PktCntrDisable | INTT_1;
-    RTL_W16(CPlusCmd, tp->cp_cmd);
-    
+
+    tp->cp_cmd |= INTT_1;
+    if (tp->use_timer_interrrupt)
+        tp->cp_cmd |= PktCntrDisable;
+    else
+        tp->cp_cmd &= ~PktCntrDisable;
+
     RTL_W16(IntrMitigate, 0x5f51);
-    
+
     rtl8168_tally_counter_addr_fill(tp);
-    
+
     rtl8168_desc_addr_fill(tp);
-    
+
     /* Set DMA burst size and Interframe Gap Time */
     if (tp->mcfg == CFG_METHOD_1)
         RTL_W32(TxConfig, (TX_DMA_BURST_512 << TxDMAShift) |
@@ -17587,337 +17969,316 @@ rtl8168_hw_start(struct net_device *dev)
     else
         RTL_W32(TxConfig, (TX_DMA_BURST_unlimited << TxDMAShift) |
                 (InterFrameGap << TxInterFrameGapShift));
-    
+
     if (tp->mcfg == CFG_METHOD_4) {
         set_offset70F(tp, 0x27);
-        
+
         RTL_W8(DBG_reg, (0x0E << 4) | Fix_Nak_1 | Fix_Nak_2);
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
+
         //disable clock request.
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-            
+
             set_offset79(tp, 0x20);
-            
+
             //tx checksum offload disable
             dev->features &= ~NETIF_F_IP_CSUM;
-            
+
             //rx checksum offload disable
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~Jumbo_En1);
-            
+
             set_offset79(tp, 0x50);
-            
+
             //tx checksum offload enable
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         //rx checksum offload enable
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
         tp->cp_cmd |= RxChkSum;
-        RTL_W16(CPlusCmd, tp->cp_cmd);
 #else
         dev->features |= NETIF_F_RXCSUM;
 #endif
+
+        tp->cp_cmd &= ~(EnableBist | Macdbgo_oe | Force_halfdup |
+                        Force_rxflow_en | Force_txflow_en | Cxpl_dbg_sel |
+                        ASF | PktCntrDisable | Macdbgo_sel);
     } else if (tp->mcfg == CFG_METHOD_5) {
-        
+
         set_offset70F(tp, 0x27);
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
+
         //disable clock request.
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-            
+
             set_offset79(tp, 0x20);
-            
+
             //tx checksum offload disable
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~Jumbo_En1);
-            
+
             set_offset79(tp, 0x50);
-            
+
             //tx checksum offload enable
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         //rx checksum offload enable
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
         tp->cp_cmd |= RxChkSum;
-        RTL_W16(CPlusCmd, tp->cp_cmd);
 #else
         dev->features |= NETIF_F_RXCSUM;
 #endif
     } else if (tp->mcfg == CFG_METHOD_6) {
         set_offset70F(tp, 0x27);
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
+
         //disable clock request.
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-            
+
             set_offset79(tp, 0x20);
-            
+
             //tx checksum offload disable
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~Jumbo_En1);
-            
+
             set_offset79(tp, 0x50);
-            
+
             //tx checksum offload enable
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         //rx checksum offload enable
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
         tp->cp_cmd |= RxChkSum;
-        RTL_W16(CPlusCmd, tp->cp_cmd);
 #else
         dev->features |= NETIF_F_RXCSUM;
 #endif
     } else if (tp->mcfg == CFG_METHOD_7) {
         set_offset70F(tp, 0x27);
-        
+
         rtl8168_eri_write(ioaddr, 0x1EC, 1, 0x07, ERIAR_ASF);
-        
+
         //disable clock request.
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-            
+
             set_offset79(tp, 0x20);
-            
+
             //tx checksum offload disable
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~Jumbo_En1);
-            
-            
+
+
             set_offset79(tp, 0x50);
-            
+
             //tx checksum offload enable
             dev->features |= NETIF_F_IP_CSUM;
         }
     } else if (tp->mcfg == CFG_METHOD_8) {
-        
+
         set_offset70F(tp, 0x27);
-        
+
         rtl8168_eri_write(ioaddr, 0x1EC, 1, 0x07, ERIAR_ASF);
-        
+
         //disable clock request.
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
+
         RTL_W8(0xD1, 0x20);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-            
+
             set_offset79(tp, 0x20);
-            
+
             //tx checksum offload disable
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~Jumbo_En1);
-            
-            
+
+
             set_offset79(tp, 0x50);
-            
+
             //tx checksum offload enable
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
     } else if (tp->mcfg == CFG_METHOD_9) {
         set_offset70F(tp, 0x27);
-        
+
         /* disable clock request. */
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~BIT_4);
         RTL_W8(DBG_reg, RTL_R8(DBG_reg) | BIT_7 | BIT_1);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-            
+
             set_offset79(tp, 0x20);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~Jumbo_En1);
-            
-            
+
+
             set_offset79(tp, 0x50);
-            
+
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         RTL_W8(TDFNR, 0x8);
-        
+
     } else if (tp->mcfg == CFG_METHOD_10) {
         set_offset70F(tp, 0x27);
-        
+
         RTL_W8(DBG_reg, RTL_R8(DBG_reg) | BIT_7 | BIT_1);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | Jumbo_En1);
-            
+
             set_offset79(tp, 0x20);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~Jumbo_En1);
-            
+
             set_offset79(tp, 0x50);
-            
+
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         RTL_W8(TDFNR, 0x8);
-        
+
         RTL_W8(Config1, RTL_R8(Config1) | 0x10);
-        
+
         /* disable clock request. */
         pci_write_config_byte(pdev, 0x81, 0x00);
     } else if (tp->mcfg == CFG_METHOD_11 || tp->mcfg == CFG_METHOD_13) {
         set_offset70F(tp, 0x17);
         set_offset79(tp, 0x50);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
-            
+
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
+
         RTL_W8(Config1, RTL_R8(Config1) | 0x10);
-        
+
     } else if (tp->mcfg == CFG_METHOD_12) {
         set_offset70F(tp, 0x17);
         set_offset79(tp, 0x50);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
-            
+
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         pci_write_config_byte(pdev, 0x81, 0x01);
-        
+
         RTL_W8(Config1, RTL_R8(Config1) | 0x10);
-        
+
     } else if (tp->mcfg == CFG_METHOD_14 || tp->mcfg == CFG_METHOD_15) {
-        
+
         set_offset70F(tp, 0x27);
         set_offset79(tp, 0x50);
-        
-        tp->cp_cmd &= 0x2063;
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(MTPS, 0x24);
             RTL_W8(Config3, RTL_R8(Config3) | Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) | 0x01);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             RTL_W8(Config3, RTL_R8(Config3) & ~Jumbo_En0);
             RTL_W8(Config4, RTL_R8(Config4) & ~0x01);
-            
+
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
-        //      RTL_W8(0xF2, RTL_R8(0xF2) | BIT_0);
-        //      RTL_W32(CounterAddrLow, RTL_R32(CounterAddrLow) | BIT_0);
-        
+
+//      RTL_W8(0xF2, RTL_R8(0xF2) | BIT_0);
+//      RTL_W32(CounterAddrLow, RTL_R32(CounterAddrLow) | BIT_0);
+
         RTL_W8(0xF3, RTL_R8(0xF3) | BIT_5);
         RTL_W8(0xF3, RTL_R8(0xF3) & ~BIT_5);
-        
-        //      RTL_W8(0xD3, RTL_R8(0xD3) | BIT_3 | BIT_2);
-        
+
+//      RTL_W8(0xD3, RTL_R8(0xD3) | BIT_3 | BIT_2);
+
         RTL_W8(0xD0, RTL_R8(0xD0) | BIT_7 | BIT_6);
-        
+
         RTL_W8(0xD1, RTL_R8(0xD1) | BIT_2 | BIT_3);
-        
+
         RTL_W8(0xF1, RTL_R8(0xF1) | BIT_6 | BIT_5 | BIT_4 | BIT_2 | BIT_1);
-        
+
         RTL_W8(TDFNR, 0x8);
-        
+
         if (aspm)
             RTL_W8(0xF1, RTL_R8(0xF1) | BIT_7);
-        
+
         RTL_W8(Config5, RTL_R8(Config5) & ~BIT_3);
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
     } else if (tp->mcfg == CFG_METHOD_16 || tp->mcfg == CFG_METHOD_17) {
         set_offset70F(tp, 0x17);
         set_offset79(tp, 0x50);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0xD5, 1, ERIAR_ExGMAC) | BIT_3 | BIT_2;
         rtl8168_eri_write(ioaddr, 0xD5, 1, csi_tmp, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xC0, 2, 0x0000, ERIAR_ExGMAC);
@@ -17927,17 +18288,17 @@ rtl8168_hw_start(struct net_device *dev)
         csi_tmp = rtl8168_eri_read(ioaddr, 0x1D0, 4, ERIAR_ExGMAC);
         csi_tmp |= BIT_1;
         rtl8168_eri_write(ioaddr, 0x1D0, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0xDC, 1, ERIAR_ExGMAC);
         csi_tmp &= ~BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
         csi_tmp |= BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         RTL_W32(TxConfig, RTL_R32(TxConfig) | BIT_7);
         RTL_W8(0xD3, RTL_R8(0xD3) & ~BIT_7);
         RTL_W8(0x1B, RTL_R8(0x1B) & ~0x07);
-        
+
         if (tp->mcfg == CFG_METHOD_16) {
             RTL_W32(0xB0, 0xEE480010);
             RTL_W8(0x1A, RTL_R8(0x1A) & ~(BIT_2|BIT_3));
@@ -17949,32 +18310,31 @@ rtl8168_hw_start(struct net_device *dev)
             rtl8168_eri_write(ioaddr, 0xCC, 4, 0x00000050, ERIAR_ExGMAC);
             rtl8168_eri_write(ioaddr, 0xD0, 4, 0x07ff0060, ERIAR_ExGMAC);
         }
-        
+
         RTL_W8(TDFNR, 0x8);
-        
+
         RTL_W8(Config2, RTL_R8(Config2) & ~PMSTS_En);
-        
+
         RTL_W8(0xD0, RTL_R8(0xD0) | BIT_6);
         RTL_W8(0xF2, RTL_R8(0xF2) | BIT_6);
-        
-        tp->cp_cmd &= 0x2063;
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(MTPS, 0x27);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         /* disable clock request. */
         pci_write_config_byte(pdev, 0x81, 0x00);
-        
+
     } else if (tp->mcfg == CFG_METHOD_18 || tp->mcfg == CFG_METHOD_19) {
         set_offset70F(tp, 0x17);
         set_offset79(tp, 0x50);
-        
+
         rtl8168_eri_write(ioaddr, 0xC8, 4, 0x00100002, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xE8, 4, 0x00100006, ERIAR_ExGMAC);
         RTL_W32(TxConfig, RTL_R32(TxConfig) | BIT_7);
@@ -17984,33 +18344,32 @@ rtl8168_hw_start(struct net_device *dev)
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
         csi_tmp |= BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         if (aspm)
             RTL_W8(0xF1, RTL_R8(0xF1) | BIT_7);
-        
-        tp->cp_cmd &= 0x2063;
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(MTPS, 0x27);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         RTL_W8(TDFNR, 0x8);
-        
+
         RTL_W8(0xD0, RTL_R8(0xD0) | BIT_6);
         RTL_W8(0xF2, RTL_R8(0xF2) | BIT_6);
-        
+
         rtl8168_eri_write(ioaddr, 0xC0, 2, 0x0000, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xB8, 4, 0x00000000, ERIAR_ExGMAC);
         csi_tmp = rtl8168_eri_read(ioaddr, 0xD5, 1, ERIAR_ExGMAC);
         csi_tmp |= BIT_3 | BIT_2;
         rtl8168_eri_write(ioaddr, 0xD5, 1, csi_tmp, ERIAR_ExGMAC);
         RTL_W8(0x1B,RTL_R8(0x1B) & ~0x07);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x1B0, 1, ERIAR_ExGMAC);
         csi_tmp |= BIT_4;
         rtl8168_eri_write(ioaddr, 0x1B0, 1, csi_tmp, ERIAR_ExGMAC);
@@ -18022,7 +18381,7 @@ rtl8168_hw_start(struct net_device *dev)
     } else if (tp->mcfg == CFG_METHOD_20) {
         set_offset70F(tp, 0x17);
         set_offset79(tp, 0x50);
-        
+
         rtl8168_eri_write(ioaddr, 0xC8, 4, 0x00100002, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xE8, 4, 0x00100006, ERIAR_ExGMAC);
         RTL_W32(TxConfig, RTL_R32(TxConfig) | BIT_7);
@@ -18032,23 +18391,22 @@ rtl8168_hw_start(struct net_device *dev)
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
         csi_tmp |= BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         if (aspm)
             RTL_W8(0xF1, RTL_R8(0xF1) | BIT_7);
-        
-        tp->cp_cmd &= 0x2063;
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(MTPS, 0x27);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         RTL_W8(TDFNR, 0x8);
-        
+
         RTL_W8(0xD0, RTL_R8(0xD0) | BIT_6);
         RTL_W8(0xF2, RTL_R8(0xF2) | BIT_6);
         rtl8168_eri_write(ioaddr, 0xC0, 2, 0x0000, ERIAR_ExGMAC);
@@ -18056,7 +18414,7 @@ rtl8168_hw_start(struct net_device *dev)
         csi_tmp = rtl8168_eri_read(ioaddr, 0xD5, 1, ERIAR_ExGMAC);
         csi_tmp |= BIT_3 | BIT_2;
         rtl8168_eri_write(ioaddr, 0xD5, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x1B0, 1, ERIAR_ExGMAC);
         csi_tmp |= BIT_4;
         rtl8168_eri_write(ioaddr, 0x1B0, 1, csi_tmp, ERIAR_ExGMAC);
@@ -18070,20 +18428,20 @@ rtl8168_hw_start(struct net_device *dev)
                tp->mcfg == CFG_METHOD_26) {
         set_offset70F(tp, 0x17);
         set_offset79(tp, 0x50);
-        
+
         rtl8168_eri_write(ioaddr, 0xC8, 4, 0x00080002, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xCC, 1, 0x38, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xD0, 1, 0x48, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xE8, 4, 0x00100006, ERIAR_ExGMAC);
-        
+
         RTL_W32(TxConfig, RTL_R32(TxConfig) | BIT_7);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0xDC, 1, ERIAR_ExGMAC);
         csi_tmp &= ~BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
         csi_tmp |= BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         if (tp->mcfg == CFG_METHOD_26) {
             mac_ocp_data = mac_ocp_read(tp, 0xD3C0);
             mac_ocp_data &= ~(BIT_11 | BIT_10 | BIT_9 | BIT_8 | BIT_7 | BIT_6 | BIT_5 | BIT_4 | BIT_3 | BIT_2 | BIT_1 | BIT_0);
@@ -18096,127 +18454,142 @@ rtl8168_hw_start(struct net_device *dev)
             mac_ocp_data |= BIT_0;
             mac_ocp_write(tp, 0xD3C4, mac_ocp_data);
         }
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
-        tp->cp_cmd = RTL_R16(CPlusCmd) &
-        ~(EnableBist | Macdbgo_oe | Force_halfdup |
-          Force_rxflow_en | Force_txflow_en |
-          Cxpl_dbg_sel | ASF | PktCntrDisable |
-          Macdbgo_sel);
-        
+
         RTL_W8(0x1B, RTL_R8(0x1B) & ~0x07);
-        
+
         RTL_W8(TDFNR, 0x4);
-        
+
         RTL_W8(Config2, RTL_R8(Config2) & ~PMSTS_En);
-        
+
         if (aspm)
             RTL_W8(0xF1, RTL_R8(0xF1) | BIT_7);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(MTPS, 0x27);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
         RTL_W8(0xD0, RTL_R8(0xD0) | BIT_6);
         RTL_W8(0xF2, RTL_R8(0xF2) | BIT_6);
-        
+
         RTL_W8(0xD0, RTL_R8(0xD0) | BIT_7);
-        
+
         rtl8168_eri_write(ioaddr, 0xC0, 2, 0x0000, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xB8, 4, 0x00000000, ERIAR_ExGMAC);
-        
-        rtl8168_eri_write(ioaddr, 0x5F0, 2, 0x4f87, ERIAR_ExGMAC);
-        
+
+        rtl8168_eri_write(ioaddr, 0x5F0, 2, 0x4F87, ERIAR_ExGMAC);
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0xD4, 4, ERIAR_ExGMAC);
         csi_tmp  |= ( BIT_7 | BIT_8 | BIT_9 | BIT_10 | BIT_11 | BIT_12 );
         rtl8168_eri_write(ioaddr, 0xD4, 4, csi_tmp, ERIAR_ExGMAC);
-        
+
+        if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
+            tp->mcfg == CFG_METHOD_24 || tp->mcfg == CFG_METHOD_25) {
+            mac_ocp_write(tp, 0xC140, 0xFFFF);
+        }
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x1B0, 4, ERIAR_ExGMAC);
         csi_tmp &= ~BIT_12;
         rtl8168_eri_write(ioaddr, 0x1B0, 4, csi_tmp, ERIAR_ExGMAC);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x2FC, 1, ERIAR_ExGMAC);
         csi_tmp &= ~(BIT_0 | BIT_1 | BIT_2);
         csi_tmp |= BIT_0;
         rtl8168_eri_write(ioaddr, 0x2FC, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x1D0, 1, ERIAR_ExGMAC);
         csi_tmp |= BIT_1;
         rtl8168_eri_write(ioaddr, 0x1D0, 1, csi_tmp, ERIAR_ExGMAC);
-    } else if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27) {
+    } else if (tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_27 ||
+               tp->mcfg == CFG_METHOD_28) {
         set_offset70F(tp, 0x17);
         set_offset79(tp, 0x50);
-        
+
         rtl8168_eri_write(ioaddr, 0xC8, 4, 0x00080002, ERIAR_ExGMAC);
-        rtl8168_eri_write(ioaddr, 0xCC, 1, 0x2f, ERIAR_ExGMAC);
-        rtl8168_eri_write(ioaddr, 0xD0, 1, 0x5f, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0xCC, 1, 0x2F, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0xD0, 1, 0x5F, ERIAR_ExGMAC);
         rtl8168_eri_write(ioaddr, 0xE8, 4, 0x00100006, ERIAR_ExGMAC);
-        
+
         RTL_W32(TxConfig, RTL_R32(TxConfig) | BIT_7);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0xDC, 1, ERIAR_ExGMAC);
         csi_tmp &= ~BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
         csi_tmp |= BIT_0;
         rtl8168_eri_write(ioaddr, 0xDC, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
-        tp->cp_cmd = RTL_R16(CPlusCmd) &
-        ~(EnableBist | Macdbgo_oe | Force_halfdup |
-          Force_rxflow_en | Force_txflow_en |
-          Cxpl_dbg_sel | ASF | PktCntrDisable |
-          Macdbgo_sel);
-        
-        rtl8168_eri_write(ioaddr, 0xC0, 2, 0x00000000, ERIAR_ExGMAC);
-        rtl8168_eri_write(ioaddr, 0xB8, 2, 0x00000000, ERIAR_ExGMAC);
+
+        RTL_W8(0xD0, RTL_R8(0xD0) | BIT_6);
+        RTL_W8(0xF2, RTL_R8(0xF2) | BIT_6);
+
+        RTL_W8(0xD0, RTL_R8(0xD0) | BIT_7);
+
+        rtl8168_eri_write(ioaddr, 0xC0, 2, 0x0000, ERIAR_ExGMAC);
+        rtl8168_eri_write(ioaddr, 0xB8, 4, 0x00000000, ERIAR_ExGMAC);
         RTL_W8(0x1B, RTL_R8(0x1B) & ~0x07);
-        
+
         RTL_W8(TDFNR, 0x4);
-        
+
         if (aspm)
             RTL_W8(0xF1, RTL_R8(0xF1) | BIT_7);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x1B0, 4, ERIAR_ExGMAC);
         csi_tmp &= ~BIT_12;
         rtl8168_eri_write(ioaddr, 0x1B0, 4, csi_tmp, ERIAR_ExGMAC);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x2FC, 1, ERIAR_ExGMAC);
         csi_tmp &= ~(BIT_0 | BIT_1 | BIT_2);
         csi_tmp |= BIT_0;
         rtl8168_eri_write(ioaddr, 0x2FC, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0x1D0, 1, ERIAR_ExGMAC);
         csi_tmp |= BIT_1;
         rtl8168_eri_write(ioaddr, 0x1D0, 1, csi_tmp, ERIAR_ExGMAC);
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             RTL_W8(MTPS, 0x27);
-            
+
             /* tx checksum offload disable */
             dev->features &= ~NETIF_F_IP_CSUM;
         } else {
             /* tx checksum offload enable */
             dev->features |= NETIF_F_IP_CSUM;
         }
-        
+
+        rtl8168_eri_write(ioaddr, 0x5F0, 2, 0x4F87, ERIAR_ExGMAC);
+
         csi_tmp = rtl8168_eri_read(ioaddr, 0xD4, 4, ERIAR_ExGMAC);
         csi_tmp  |= ( BIT_7 | BIT_8 | BIT_9 | BIT_10 | BIT_11 | BIT_12 );
         rtl8168_eri_write(ioaddr, 0xD4, 4, csi_tmp, ERIAR_ExGMAC);
+
+        mac_ocp_write(tp, 0xC140, 0xFFFF);
+        mac_ocp_write(tp, 0xC142, 0xFFFF);
+
+        if (tp->mcfg == CFG_METHOD_28) {
+            mac_ocp_data = mac_ocp_read(tp, 0xD3E2);
+            mac_ocp_data &= 0xF000;
+            mac_ocp_data |= 0x3A9;
+            mac_ocp_write(tp, 0xD3E2, mac_ocp_data);
+
+            mac_ocp_data = mac_ocp_read(tp, 0xD3E4);
+            mac_ocp_data &= 0xFF00;
+            mac_ocp_write(tp, 0xD3E4, mac_ocp_data);
+
+            mac_ocp_data = mac_ocp_read(tp, 0xE860);
+            mac_ocp_data |= BIT_7;
+            mac_ocp_write(tp, 0xE860, mac_ocp_data);
+        }
     } else if (tp->mcfg == CFG_METHOD_1) {
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             pci_read_config_byte(pdev, 0x69, &device_control);
             device_control &= ~0x70;
@@ -18230,54 +18603,44 @@ rtl8168_hw_start(struct net_device *dev)
         }
     } else if (tp->mcfg == CFG_METHOD_2) {
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             pci_read_config_byte(pdev, 0x69, &device_control);
             device_control &= ~0x70;
             device_control |= 0x28;
             pci_write_config_byte(pdev, 0x69, device_control);
-            
+
             RTL_W8(Config4, RTL_R8(Config4) | (1 << 0));
         } else {
             pci_read_config_byte(pdev, 0x69, &device_control);
             device_control &= ~0x70;
             device_control |= 0x58;
             pci_write_config_byte(pdev, 0x69, device_control);
-            
+
             RTL_W8(Config4, RTL_R8(Config4) & ~(1 << 0));
         }
     } else if (tp->mcfg == CFG_METHOD_3) {
         RTL_W8(Config3, RTL_R8(Config3) & ~Beacon_en);
-        
-        RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) &
-                ~(EnableBist | Macdbgo_oe | Force_halfdup | Force_rxflow_en | Force_txflow_en |
-                  Cxpl_dbg_sel | ASF | PktCntrDisable | Macdbgo_sel));
-        
+
         if (dev->mtu > ETH_DATA_LEN) {
             pci_read_config_byte(pdev, 0x69, &device_control);
             device_control &= ~0x70;
             device_control |= 0x28;
             pci_write_config_byte(pdev, 0x69, device_control);
-            
+
             RTL_W8(Config4, RTL_R8(Config4) | (1 << 0));
         } else {
             pci_read_config_byte(pdev, 0x69, &device_control);
             device_control &= ~0x70;
             device_control |= 0x58;
             pci_write_config_byte(pdev, 0x69, device_control);
-            
+
             RTL_W8(Config4, RTL_R8(Config4) & ~(1 << 0));
         }
     } else if (tp->mcfg == CFG_METHOD_DEFAULT) {
-        tp->cp_cmd &= 0x2043;
-        
         dev->features &= ~NETIF_F_IP_CSUM;
     }
-    
+
     if ((tp->mcfg == CFG_METHOD_1) || (tp->mcfg == CFG_METHOD_2) || (tp->mcfg == CFG_METHOD_3)) {
         /* csum offload command for RTL8168B/8111B */
         tp->tx_tcp_csum_cmd = TxIPCS | TxTCPCS;
@@ -18289,20 +18652,20 @@ rtl8168_hw_start(struct net_device *dev)
         tp->tx_udp_csum_cmd = TxIPCS_C | TxUDPCS_C;
         tp->tx_ip_csum_cmd = TxIPCS_C;
     }
-    
-    
+
+
     //other hw parameters
     if (tp->mcfg == CFG_METHOD_21 || tp->mcfg == CFG_METHOD_22 ||
         tp->mcfg == CFG_METHOD_23 || tp->mcfg == CFG_METHOD_24 ||
         tp->mcfg == CFG_METHOD_25 || tp->mcfg == CFG_METHOD_26 ||
-        tp->mcfg == CFG_METHOD_27)
+        tp->mcfg == CFG_METHOD_27 || tp->mcfg == CFG_METHOD_28)
         rtl8168_eri_write(ioaddr, 0x2F8, 2, 0x1D8F, ERIAR_ExGMAC);
-    
+
     if (tp->bios_setting & BIT_28) {
         if (tp->mcfg == CFG_METHOD_18 || tp->mcfg == CFG_METHOD_19 ||
             tp->mcfg == CFG_METHOD_20) {
             u32 gphy_val;
-            
+
             spin_lock_irqsave(&tp->phy_lock, flags);
             mdio_write(tp, 0x1F, 0x0007);
             mdio_write(tp, 0x1E, 0x002C);
@@ -18318,67 +18681,74 @@ rtl8168_hw_start(struct net_device *dev)
             spin_unlock_irqrestore(&tp->phy_lock, flags);
         }
     }
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            if (aspm) {
-                rtl8168_init_pci_offset_99(tp);
-            }
-            break;
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (aspm) {
+            rtl8168_init_pci_offset_99(tp);
+        }
+        break;
     }
     switch (tp->mcfg) {
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            if (aspm) {
-                rtl8168_init_pci_offset_180(tp);
-            }
-            break;
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (aspm) {
+            rtl8168_init_pci_offset_180(tp);
+        }
+        break;
     }
-    
+
+    tp->cp_cmd &= ~(EnableBist | Macdbgo_oe | Force_halfdup |
+                    Force_rxflow_en | Force_txflow_en | Cxpl_dbg_sel |
+                    ASF | Macdbgo_sel);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
     RTL_W16(CPlusCmd, tp->cp_cmd);
 #else
     rtl8168_hw_set_features(dev, dev->features);
 #endif
-    
+
     switch (tp->mcfg) {
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27: {
-            int timeout;
-            for (timeout = 0; timeout < 10; timeout++) {
-                if ((rtl8168_eri_read(ioaddr, 0x1AE, 2, ERIAR_ExGMAC) & BIT_13)==0)
-                    break;
-                mdelay(1);
-            }
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28: {
+        int timeout;
+        for (timeout = 0; timeout < 10; timeout++) {
+            if ((rtl8168_eri_read(ioaddr, 0x1AE, 2, ERIAR_ExGMAC) & BIT_13)==0)
+                break;
+            mdelay(1);
         }
-            break;
     }
-    
+    break;
+    }
+
     RTL_W16(RxMaxSize, tp->rx_buf_sz);
-    
+
     rtl8168_disable_rxdvgate(dev);
-    
+
     if (tp->mcfg == CFG_METHOD_11 || tp->mcfg == CFG_METHOD_12)
         rtl8168_mac_loopback_test(tp);
-    
+
     if (!tp->pci_cfg_is_read) {
         pci_read_config_byte(pdev, PCI_COMMAND, &tp->pci_cfg_space.cmd);
         pci_read_config_word(pdev, PCI_BASE_ADDRESS_0, &tp->pci_cfg_space.io_base_l);
@@ -18394,53 +18764,60 @@ rtl8168_hw_start(struct net_device *dev)
         pci_read_config_word(pdev, PCI_BASE_ADDRESS_5 + 2, &tp->pci_cfg_space.resv_0x24_h);
         pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &tp->pci_cfg_space.resv_0x2c_l);
         pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID + 2, &tp->pci_cfg_space.resv_0x2c_h);
-        tp->pci_cfg_space.pci_nvidia_geforce_6200 = rtl8168_csi_read(tp, PCI_DEVICE_ID_NVIDIA_GEFORCE_GO_6200);
-        
+        tp->pci_cfg_space.pci_sn_l = rtl8168_csi_read(tp, PCI_DEVICE_SERIAL_NUMBER);
+        tp->pci_cfg_space.pci_sn_h = rtl8168_csi_read(tp, PCI_DEVICE_SERIAL_NUMBER + 4);
+
         tp->pci_cfg_is_read = 1;
     }
-    
+
     rtl8168_dsm(dev, DSM_MAC_INIT);
-    
+
     /* Set Rx packet filter */
     rtl8168_hw_set_rx_packet_filter(dev);
-    
+
+#ifdef ENABLE_DASH_SUPPORT
+    if (tp->DASH)
+        NICChkTypeEnableDashInterrupt(tp);
+#endif
+
     switch (tp->mcfg) {
-        case CFG_METHOD_14:
-        case CFG_METHOD_15:
-        case CFG_METHOD_16:
-        case CFG_METHOD_17:
-        case CFG_METHOD_18:
-        case CFG_METHOD_19:
-        case CFG_METHOD_20:
-        case CFG_METHOD_21:
-        case CFG_METHOD_22:
-        case CFG_METHOD_23:
-        case CFG_METHOD_24:
-        case CFG_METHOD_25:
-        case CFG_METHOD_26:
-        case CFG_METHOD_27:
-            if (aspm) {
-                RTL_W8(Config5, RTL_R8(Config5) | BIT_0);
-                RTL_W8(Config2, RTL_R8(Config2) | BIT_7);
-            } else {
-                RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
-                RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
-            }
-            break;
+    case CFG_METHOD_14:
+    case CFG_METHOD_15:
+    case CFG_METHOD_16:
+    case CFG_METHOD_17:
+    case CFG_METHOD_18:
+    case CFG_METHOD_19:
+    case CFG_METHOD_20:
+    case CFG_METHOD_21:
+    case CFG_METHOD_22:
+    case CFG_METHOD_23:
+    case CFG_METHOD_24:
+    case CFG_METHOD_25:
+    case CFG_METHOD_26:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (aspm) {
+            RTL_W8(Config5, RTL_R8(Config5) | BIT_0);
+            RTL_W8(Config2, RTL_R8(Config2) | BIT_7);
+        } else {
+            RTL_W8(Config2, RTL_R8(Config2) & ~BIT_7);
+            RTL_W8(Config5, RTL_R8(Config5) & ~BIT_0);
+        }
+        break;
     }
-    
+
     RTL_W8(Cfg9346, Cfg9346_Lock);
-    
+
     if (!tp->in_open_fun) {
         RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
-        
+
         if (tp->rx_fifo_overflow == 0) {
             /* Enable all known interrupts by setting the interrupt mask. */
-            RTL_W16(IntrMask, tp->intr_mask);
+            rtl8168_enable_hw_interrupt(tp, ioaddr);
             netif_start_queue(dev);
         }
     }
-    
+
     udelay(10);
 }
 
@@ -18453,48 +18830,48 @@ rtl8168_change_mtu(struct net_device *dev,
     int max_mtu;
     int ret = 0;
     unsigned long flags;
-    
+
     if (tp->mcfg == CFG_METHOD_DEFAULT)
         max_mtu = ETH_DATA_LEN;
     else
         max_mtu = tp->max_jumbo_frame_size - ETH_HLEN - 8;
-    
+
     if (new_mtu < ETH_ZLEN)
         return -EINVAL;
     else if (new_mtu > max_mtu)
         new_mtu = max_mtu;
-    
+
     if (!netif_running(dev))
         goto out;
-    
+
     rtl8168_down(dev);
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     dev->mtu = new_mtu;
-    
+
     rtl8168_set_rxbufsize(tp, dev);
-    
+
     ret = rtl8168_init_ring(dev);
-    
+
     if (ret < 0) {
         spin_unlock_irqrestore(&tp->lock, flags);
         goto out;
     }
-    
+
 #ifdef CONFIG_R8168_NAPI
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
     RTL_NAPI_ENABLE(dev, &tp->napi);
 #endif
-#endif//CONFIG_R8168_NAPI
-    
+#endif//CONFIG_R8168_NAPI		
+
     rtl8168_hw_start(dev);
     spin_unlock_irqrestore(&tp->lock, flags);
     rtl8168_set_speed(dev, tp->autoneg, tp->speed, tp->duplex);
-    
+
     mod_timer(&tp->esd_timer, jiffies + RTL8168_ESD_TIMEOUT);
     mod_timer(&tp->link_timer, jiffies + RTL8168_LINK_TIMEOUT);
-    
+
 out:
     return ret;
 }
@@ -18512,7 +18889,7 @@ rtl8168_free_rx_skb(struct rtl8168_private *tp,
                     struct RxDesc *desc)
 {
     struct pci_dev *pdev = tp->pci_dev;
-    
+
     pci_unmap_single(pdev, le64_to_cpu(desc->addr), tp->rx_buf_sz,
                      PCI_DMA_FROMDEVICE);
     dev_kfree_skb(*sk_buff);
@@ -18525,7 +18902,7 @@ rtl8168_mark_to_asic(struct RxDesc *desc,
                      u32 rx_buf_sz)
 {
     u32 eor = le32_to_cpu(desc->opts1) & RingEnd;
-    
+
     desc->opts1 = cpu_to_le32(DescOwn | eor | rx_buf_sz);
 }
 
@@ -18548,22 +18925,22 @@ rtl8168_alloc_rx_skb(struct pci_dev *pdev,
     struct sk_buff *skb;
     dma_addr_t mapping;
     int ret = 0;
-    
+
     skb = dev_alloc_skb(rx_buf_sz + RTK_RX_ALIGN);
     if (!skb)
         goto err_out;
-    
+
     skb_reserve(skb, RTK_RX_ALIGN);
     *sk_buff = skb;
-    
+
     mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
                              PCI_DMA_FROMDEVICE);
-    
+
     rtl8168_map_to_asic(desc, mapping, rx_buf_sz);
-    
+
 out:
     return ret;
-    
+
 err_out:
     ret = -ENOMEM;
     rtl8168_make_unusable_by_asic(desc);
@@ -18574,7 +18951,7 @@ static void
 rtl8168_rx_clear(struct rtl8168_private *tp)
 {
     int i;
-    
+
     for (i = 0; i < NUM_RX_DESC; i++) {
         if (tp->Rx_skbuff[i])
             rtl8168_free_rx_skb(tp, tp->Rx_skbuff + i,
@@ -18589,13 +18966,13 @@ rtl8168_rx_fill(struct rtl8168_private *tp,
                 u32 end)
 {
     u32 cur;
-    
+
     for (cur = start; end - cur > 0; cur++) {
         int ret, i = cur % NUM_RX_DESC;
-        
+
         if (tp->Rx_skbuff[i])
             continue;
-        
+
         ret = rtl8168_alloc_rx_skb(tp->pci_dev, tp->Rx_skbuff + i,
                                    tp->RxDescArray + i, tp->rx_buf_sz);
         if (ret < 0)
@@ -18614,10 +18991,10 @@ static void
 rtl8168_desc_addr_fill(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     if (!tp->TxPhyAddr || !tp->RxPhyAddr)
         return;
-    
+
     RTL_W32(TxDescStartAddrLow, ((u64) tp->TxPhyAddr & DMA_BIT_MASK(32)));
     RTL_W32(TxDescStartAddrHigh, ((u64) tp->TxPhyAddr >> 32));
     RTL_W32(RxDescAddrLow, ((u64) tp->RxPhyAddr & DMA_BIT_MASK(32)));
@@ -18628,9 +19005,9 @@ static void
 rtl8168_tx_desc_init(struct rtl8168_private *tp)
 {
     int i = 0;
-    
+
     memset(tp->TxDescArray, 0x0, NUM_TX_DESC * sizeof(struct TxDesc));
-    
+
     for (i = 0; i < NUM_TX_DESC; i++) {
         if (i == (NUM_TX_DESC - 1))
             tp->TxDescArray[i].opts1 = cpu_to_le32(RingEnd);
@@ -18642,10 +19019,10 @@ rtl8168_rx_desc_offset0_init(struct rtl8168_private *tp, int own)
 {
     int i = 0;
     int ownbit = 0;
-    
+
     if (own)
         ownbit = DescOwn;
-    
+
     for (i = 0; i < NUM_RX_DESC; i++) {
         if (i == (NUM_RX_DESC - 1))
             tp->RxDescArray[i].opts1 = cpu_to_le32((ownbit | RingEnd) | (unsigned long)tp->rx_buf_sz);
@@ -18664,22 +19041,22 @@ static int
 rtl8168_init_ring(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     rtl8168_init_ring_indexes(tp);
-    
+
     memset(tp->tx_skb, 0x0, NUM_TX_DESC * sizeof(struct ring_info));
     memset(tp->Rx_skbuff, 0x0, NUM_RX_DESC * sizeof(struct sk_buff *));
-    
+
     rtl8168_tx_desc_init(tp);
     rtl8168_rx_desc_init(tp);
-    
+
     if (rtl8168_rx_fill(tp, dev, 0, NUM_RX_DESC) != NUM_RX_DESC)
         goto err_out;
-    
+
     rtl8168_mark_as_last_descriptor(tp->RxDescArray + NUM_RX_DESC - 1);
-    
+
     return 0;
-    
+
 err_out:
     rtl8168_rx_clear(tp);
     return -ENOMEM;
@@ -18691,7 +19068,7 @@ rtl8168_unmap_tx_skb(struct pci_dev *pdev,
                      struct TxDesc *desc)
 {
     unsigned int len = tx_skb->len;
-    
+
     pci_unmap_single(pdev, le64_to_cpu(desc->addr), len, PCI_DMA_TODEVICE);
     desc->opts1 = 0x00;
     desc->opts2 = 0x00;
@@ -18706,15 +19083,15 @@ rtl8168_tx_clear(struct rtl8168_private *tp)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
     struct net_device *dev = tp->dev;
 #endif
-    
+
     for (i = tp->dirty_tx; i < tp->dirty_tx + NUM_TX_DESC; i++) {
         unsigned int entry = i % NUM_TX_DESC;
         struct ring_info *tx_skb = tp->tx_skb + entry;
         unsigned int len = tx_skb->len;
-        
+
         if (len) {
             struct sk_buff *skb = tx_skb->skb;
-            
+
             rtl8168_unmap_tx_skb(tp->pci_dev, tx_skb,
                                  tp->TxDescArray + entry);
             if (skb) {
@@ -18732,7 +19109,7 @@ static void rtl8168_schedule_work(struct net_device *dev, void (*task)(void *))
 {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     PREPARE_WORK(&tp->task, task, dev);
     schedule_delayed_work(&tp->task, 4);
 #endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
@@ -18741,7 +19118,7 @@ static void rtl8168_schedule_work(struct net_device *dev, void (*task)(void *))
 static void rtl8168_schedule_work(struct net_device *dev, work_func_t task)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
-    
+
     PREPARE_DELAYED_WORK(&tp->task, task);
     schedule_delayed_work(&tp->task, 4);
 }
@@ -18752,18 +19129,18 @@ rtl8168_wait_for_quiescence(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     synchronize_irq(dev->irq);
-    
+
     /* Wait for any pending NAPI task to complete */
 #ifdef CONFIG_R8168_NAPI
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
     RTL_NAPI_DISABLE(dev, &tp->napi);
 #endif
 #endif//CONFIG_R8168_NAPI
-    
-    rtl8168_irq_mask_and_ack(ioaddr);
-    
+
+    rtl8168_irq_mask_and_ack(tp, ioaddr);
+
 #ifdef CONFIG_R8168_NAPI
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
     RTL_NAPI_ENABLE(dev, &tp->napi);
@@ -18782,21 +19159,21 @@ static void rtl8168_reinit_task(struct work_struct *work)
     struct net_device *dev = _data;
 #else
     struct rtl8168_private *tp =
-    container_of(work, struct rtl8168_private, task.work);
+        container_of(work, struct rtl8168_private, task.work);
     struct net_device *dev = tp->dev;
 #endif
     int ret;
-    
+
     if (netif_running(dev)) {
         rtl8168_wait_for_quiescence(dev);
         rtl8168_close(dev);
     }
-    
+
     ret = rtl8168_open(dev);
     if (unlikely(ret < 0)) {
         if (net_ratelimit()) {
             struct rtl8168_private *tp = netdev_priv(dev);
-            
+
             if (netif_msg_drv(tp)) {
                 printk(PFX KERN_ERR
                        "%s: reinit failure (status = %d)."
@@ -18814,689 +19191,734 @@ static void rtl8168_reset_task(void *_data)
     struct net_device *dev = _data;
     struct rtl8168_private *tp = netdev_priv(dev);
 #else
-    static void rtl8168_reset_task(struct work_struct *work)
-    {
-        struct rtl8168_private *tp =
+static void rtl8168_reset_task(struct work_struct *work)
+{
+    struct rtl8168_private *tp =
         container_of(work, struct rtl8168_private, task.work);
-        struct net_device *dev = tp->dev;
+    struct net_device *dev = tp->dev;
 #endif
-        unsigned long flags;
-        
-        if (!netif_running(dev))
-            return;
-        
-        rtl8168_wait_for_quiescence(dev);
-        
-        rtl8168_rx_interrupt(dev, tp, tp->mmio_addr, ~(u32)0);
-        
-        spin_lock_irqsave(&tp->lock, flags);
-        
-        rtl8168_tx_clear(tp);
-        
-        if (tp->dirty_rx == tp->cur_rx) {
-            rtl8168_init_ring_indexes(tp);
-            rtl8168_hw_start(dev);
-            rtl8168_set_speed(dev, tp->autoneg, tp->speed, tp->duplex);
-            netif_wake_queue(dev);
-            spin_unlock_irqrestore(&tp->lock, flags);
-        } else {
-            spin_unlock_irqrestore(&tp->lock, flags);
-            if (net_ratelimit()) {
-                struct rtl8168_private *tp = netdev_priv(dev);
-                
-                if (netif_msg_intr(tp)) {
-                    printk(PFX KERN_EMERG
-                           "%s: Rx buffers shortage\n", dev->name);
-                }
-            }
-            rtl8168_schedule_work(dev, rtl8168_reset_task);
-        }
-    }
-    
-    static void
-    rtl8168_tx_timeout(struct net_device *dev)
-    {
-        struct rtl8168_private *tp = netdev_priv(dev);
-        unsigned long flags;
-        
-        spin_lock_irqsave(&tp->lock, flags);
-        rtl8168_hw_reset(dev);
+    unsigned long flags;
+
+    if (!netif_running(dev))
+        return;
+
+    rtl8168_wait_for_quiescence(dev);
+
+    rtl8168_rx_interrupt(dev, tp, tp->mmio_addr, ~(u32)0);
+
+    spin_lock_irqsave(&tp->lock, flags);
+
+    rtl8168_tx_clear(tp);
+
+    if (tp->dirty_rx == tp->cur_rx) {
+        rtl8168_init_ring_indexes(tp);
+        rtl8168_hw_start(dev);
+        rtl8168_set_speed(dev, tp->autoneg, tp->speed, tp->duplex);
+        netif_wake_queue(dev);
         spin_unlock_irqrestore(&tp->lock, flags);
-        
-        /* Let's wait a bit while any (async) irq lands on */
+    } else {
+        spin_unlock_irqrestore(&tp->lock, flags);
+        if (net_ratelimit()) {
+            struct rtl8168_private *tp = netdev_priv(dev);
+
+            if (netif_msg_intr(tp)) {
+                printk(PFX KERN_EMERG
+                       "%s: Rx buffers shortage\n", dev->name);
+            }
+        }
         rtl8168_schedule_work(dev, rtl8168_reset_task);
     }
-    
-    static int
-    rtl8168_xmit_frags(struct rtl8168_private *tp,
-                       struct sk_buff *skb,
-                       u32 opts1,
-                       u32 opts2)
-    {
-        struct skb_shared_info *info = skb_shinfo(skb);
-        unsigned int cur_frag, entry;
-        struct TxDesc *txd = NULL;
-        
-        entry = tp->cur_tx;
-        for (cur_frag = 0; cur_frag < info->nr_frags; cur_frag++) {
-            skb_frag_t *frag = info->frags + cur_frag;
-            dma_addr_t mapping;
-            u32 status, len;
-            void *addr;
-            
-            entry = (entry + 1) % NUM_TX_DESC;
-            
-            txd = tp->TxDescArray + entry;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
-            len = frag->size;
-            addr = ((void *) page_address(frag->page)) + frag->page_offset;
-#else
-            len = skb_frag_size(frag);
-            addr = skb_frag_address(frag);
-#endif
-            mapping = pci_map_single(tp->pci_dev, addr, len, PCI_DMA_TODEVICE);
-            
-            /* anti gcc 2.95.3 bugware (sic) */
-            status = opts1 | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
-            
-            txd->addr = cpu_to_le64(mapping);
-            
-            tp->tx_skb[entry].len = len;
-            
-            txd->opts1 = cpu_to_le32(status);
-            txd->opts2 = cpu_to_le32(opts2);
-        }
-        
-        if (cur_frag) {
-            tp->tx_skb[entry].skb = skb;
-            wmb();
-            txd->opts1 |= cpu_to_le32(LastFrag);
-        }
-        
-        return cur_frag;
-    }
-    
-    static inline u32
-    rtl8168_tx_csum(struct sk_buff *skb,
-                    struct net_device *dev)
-    {
-        struct rtl8168_private *tp = netdev_priv(dev);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-        const struct iphdr *ip = skb->nh.iph;
-#else
-        const struct iphdr *ip = ip_hdr(skb);
-#endif
-        
-        if (skb->ip_summed == CHECKSUM_PARTIAL) {
-            if (ip->protocol == IPPROTO_TCP)
-                return tp->tx_tcp_csum_cmd;
-            else if (ip->protocol == IPPROTO_UDP)
-                return tp->tx_udp_csum_cmd;
-            else if (ip->protocol == IPPROTO_IP)
-                return tp->tx_ip_csum_cmd;
-            
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
-            WARN_ON(1); /* we need a WARN() */
-#endif
-        }
-        
-        return 0;
-    }
-    
-    static int
-    rtl8168_start_xmit(struct sk_buff *skb,
-                       struct net_device *dev)
-    {
-        struct rtl8168_private *tp = netdev_priv(dev);
-        unsigned int frags, entry = tp->cur_tx % NUM_TX_DESC;
-        struct TxDesc *txd = tp->TxDescArray + entry;
-        void __iomem *ioaddr = tp->mmio_addr;
+}
+
+static void
+rtl8168_tx_timeout(struct net_device *dev)
+{
+    struct rtl8168_private *tp = netdev_priv(dev);
+    unsigned long flags;
+
+    spin_lock_irqsave(&tp->lock, flags);
+    rtl8168_hw_reset(dev);
+    spin_unlock_irqrestore(&tp->lock, flags);
+
+    /* Let's wait a bit while any (async) irq lands on */
+    rtl8168_schedule_work(dev, rtl8168_reset_task);
+}
+
+static int
+rtl8168_xmit_frags(struct rtl8168_private *tp,
+                   struct sk_buff *skb,
+                   u32 opts1,
+                   u32 opts2)
+{
+    struct skb_shared_info *info = skb_shinfo(skb);
+    unsigned int cur_frag, entry;
+    struct TxDesc *txd = NULL;
+
+    entry = tp->cur_tx;
+    for (cur_frag = 0; cur_frag < info->nr_frags; cur_frag++) {
+        skb_frag_t *frag = info->frags + cur_frag;
         dma_addr_t mapping;
-        u32 len;
-        u32 opts1;
-        u32 opts2;
-        int ret = NETDEV_TX_OK;
-        unsigned long flags, large_send;
-        
-        spin_lock_irqsave(&tp->lock, flags);
-        
-        //Work around for rx fifo overflow
-        if (tp->rx_fifo_overflow == 1)
-            goto err_stop;
-        
-        if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
-            if (netif_msg_drv(tp)) {
-                printk(KERN_ERR
-                       "%s: BUG! Tx Ring full when queue awake!\n",
-                       dev->name);
-            }
-            goto err_stop;
-        }
-        
-        if (unlikely(le32_to_cpu(txd->opts1) & DescOwn))
-            goto err_stop;
-        
-        opts1 = DescOwn;
-        opts2 = rtl8168_tx_vlan_tag(tp, skb);
-        
-        large_send = 0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
-        if (dev->features & NETIF_F_TSO) {
-            u32 mss = skb_is_gso(skb);
-            
-            /* TCP Segmentation Offload (or TCP Large Send) */
-            if (mss) {
-                if ((tp->mcfg == CFG_METHOD_1) ||
-                    (tp->mcfg == CFG_METHOD_2) ||
-                    (tp->mcfg == CFG_METHOD_3)) {
-                    opts1 |= LargeSend | ((mss & MSSMask) << 16);
-                } else if ((tp->mcfg == CFG_METHOD_11) ||
-                           (tp->mcfg == CFG_METHOD_12) ||
-                           (tp->mcfg == CFG_METHOD_13)) {
-                    opts2 |= LargeSend_DP | ((mss & MSSMask) << 18);
-                } else {
-                    opts1 |= LargeSend;
-                    opts2 |= (mss & MSSMask) << 18;
-                }
-                large_send = 1;
-            }
-        }
-#endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
-        
-        if (large_send == 0) {
-            if (dev->features & NETIF_F_IP_CSUM) {
-                if ((tp->mcfg == CFG_METHOD_1) || (tp->mcfg == CFG_METHOD_2) || (tp->mcfg == CFG_METHOD_3))
-                    opts1 |= rtl8168_tx_csum(skb, dev);
-                else
-                    opts2 |= rtl8168_tx_csum(skb, dev);
-            }
-        }
-        
-        frags = rtl8168_xmit_frags(tp, skb, opts1, opts2);
-        if (frags) {
-            len = skb_headlen(skb);
-            opts1 |= FirstFrag;
-        } else {
-            len = skb->len;
-            
-            if ((tp->mcfg == CFG_METHOD_16|| tp->mcfg == CFG_METHOD_17)&& len < 60) {
-                if (opts2 & 0xE0000000) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-                    skb_checksum_help(skb, 0);
+        u32 status, len;
+        void *addr;
+
+        entry = (entry + 1) % NUM_TX_DESC;
+
+        txd = tp->TxDescArray + entry;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
+        len = frag->size;
+        addr = ((void *) page_address(frag->page)) + frag->page_offset;
 #else
-                    skb_checksum_help(skb);
+        len = skb_frag_size(frag);
+        addr = skb_frag_address(frag);
 #endif
-                    opts2 &= ~0xE0000000;
-                }
-                len = 60;
-            }
-            opts1 |= FirstFrag | LastFrag;
-            
-            tp->tx_skb[entry].skb = skb;
-        }
-        
-        opts1 |= len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
-        mapping = pci_map_single(tp->pci_dev, skb->data, len, PCI_DMA_TODEVICE);
-        tp->tx_skb[entry].len = len;
+        mapping = pci_map_single(tp->pci_dev, addr, len, PCI_DMA_TODEVICE);
+
+        /* anti gcc 2.95.3 bugware (sic) */
+        status = opts1 | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
+
         txd->addr = cpu_to_le64(mapping);
+
+        tp->tx_skb[entry].len = len;
+
+        txd->opts1 = cpu_to_le32(status);
         txd->opts2 = cpu_to_le32(opts2);
-        txd->opts1 = cpu_to_le32(opts1&~DescOwn);
+    }
+
+    if (cur_frag) {
+        tp->tx_skb[entry].skb = skb;
         wmb();
-        txd->opts1 = cpu_to_le32(opts1);
-        
-        dev->trans_start = jiffies;
-        
-        tp->cur_tx += frags + 1;
-        
-        wmb();
-        
-        RTL_W8(TxPoll, NPQ);    /* set polling bit */
-        
-        if (TX_BUFFS_AVAIL(tp) < MAX_SKB_FRAGS) {
-            netif_stop_queue(dev);
-            smp_rmb();
-            if (TX_BUFFS_AVAIL(tp) >= MAX_SKB_FRAGS)
-                netif_wake_queue(dev);
+        txd->opts1 |= cpu_to_le32(LastFrag);
+    }
+
+    return cur_frag;
+}
+
+static inline u32
+rtl8168_tx_csum(struct sk_buff *skb,
+                struct net_device *dev)
+{
+    struct rtl8168_private *tp = netdev_priv(dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
+    const struct iphdr *ip = skb->nh.iph;
+#else
+    const struct iphdr *ip = ip_hdr(skb);
+#endif
+
+    if (skb->ip_summed == CHECKSUM_PARTIAL) {
+        if (ip->protocol == IPPROTO_TCP)
+            return tp->tx_tcp_csum_cmd;
+        else if (ip->protocol == IPPROTO_UDP)
+            return tp->tx_udp_csum_cmd;
+        else if (ip->protocol == IPPROTO_IP)
+            return tp->tx_ip_csum_cmd;
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
+        WARN_ON(1); /* we need a WARN() */
+#endif
+    }
+
+    return 0;
+}
+
+static int
+rtl8168_start_xmit(struct sk_buff *skb,
+                   struct net_device *dev)
+{
+    struct rtl8168_private *tp = netdev_priv(dev);
+    unsigned int frags, entry = tp->cur_tx % NUM_TX_DESC;
+    struct TxDesc *txd = tp->TxDescArray + entry;
+    void __iomem *ioaddr = tp->mmio_addr;
+    dma_addr_t mapping;
+    u32 len;
+    u32 opts1;
+    u32 opts2;
+    int ret = NETDEV_TX_OK;
+    unsigned long flags, large_send;
+
+    spin_lock_irqsave(&tp->lock, flags);
+
+    //Work around for rx fifo overflow
+    if (tp->rx_fifo_overflow == 1)
+        goto err_stop;
+
+    if (unlikely(TX_BUFFS_AVAIL(tp) < skb_shinfo(skb)->nr_frags)) {
+        if (netif_msg_drv(tp)) {
+            printk(KERN_ERR
+                   "%s: BUG! Tx Ring full when queue awake!\n",
+                   dev->name);
         }
-        
-        spin_unlock_irqrestore(&tp->lock, flags);
-        
-    out:
-        return ret;
-    err_stop:
+        goto err_stop;
+    }
+
+    if (unlikely(le32_to_cpu(txd->opts1) & DescOwn))
+        goto err_stop;
+
+    opts1 = DescOwn;
+    opts2 = rtl8168_tx_vlan_tag(tp, skb);
+
+    large_send = 0;
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
+    if (dev->features & NETIF_F_TSO) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+        u32 mss = skb_shinfo(skb)->gso_size;
+#else
+        u32 mss = skb_is_gso(skb);
+#endif //LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+
+        /* TCP Segmentation Offload (or TCP Large Send) */
+        if (mss) {
+            if ((tp->mcfg == CFG_METHOD_1) ||
+                (tp->mcfg == CFG_METHOD_2) ||
+                (tp->mcfg == CFG_METHOD_3)) {
+                opts1 |= LargeSend | ((mss & MSSMask) << 16);
+            } else if ((tp->mcfg == CFG_METHOD_11) ||
+                       (tp->mcfg == CFG_METHOD_12) ||
+                       (tp->mcfg == CFG_METHOD_13)) {
+                opts2 |= LargeSend_DP | ((mss & MSSMask) << 18);
+            } else {
+                opts1 |= LargeSend;
+                opts2 |= (mss & MSSMask) << 18;
+            }
+            large_send = 1;
+        }
+    }
+#endif //LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
+
+    if (large_send == 0) {
+        if (dev->features & NETIF_F_IP_CSUM) {
+            if ((tp->mcfg == CFG_METHOD_1) || (tp->mcfg == CFG_METHOD_2) || (tp->mcfg == CFG_METHOD_3))
+                opts1 |= rtl8168_tx_csum(skb, dev);
+            else
+                opts2 |= rtl8168_tx_csum(skb, dev);
+        }
+    }
+
+    frags = rtl8168_xmit_frags(tp, skb, opts1, opts2);
+    if (frags) {
+        len = skb_headlen(skb);
+        opts1 |= FirstFrag;
+    } else {
+        len = skb->len;
+
+        if ((tp->mcfg == CFG_METHOD_16|| tp->mcfg == CFG_METHOD_17)&& len < 60) {
+            if (opts2 & 0xE0000000) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,7)
+                skb_checksum_help(&skb, 0);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)
+                skb_checksum_help(skb, 0);
+#else
+                skb_checksum_help(skb);
+#endif
+                opts2 &= ~0xE0000000;
+            }
+            len = 60;
+        }
+        opts1 |= FirstFrag | LastFrag;
+
+        tp->tx_skb[entry].skb = skb;
+    }
+
+    opts1 |= len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
+    mapping = pci_map_single(tp->pci_dev, skb->data, len, PCI_DMA_TODEVICE);
+    tp->tx_skb[entry].len = len;
+    txd->addr = cpu_to_le64(mapping);
+    txd->opts2 = cpu_to_le32(opts2);
+    txd->opts1 = cpu_to_le32(opts1&~DescOwn);
+    wmb();
+    txd->opts1 = cpu_to_le32(opts1);
+
+    dev->trans_start = jiffies;
+
+    tp->cur_tx += frags + 1;
+
+    wmb();
+
+    RTL_W8(TxPoll, NPQ);    /* set polling bit */
+
+    if (TX_BUFFS_AVAIL(tp) < MAX_SKB_FRAGS) {
         netif_stop_queue(dev);
-        ret = NETDEV_TX_BUSY;
-        RTLDEV->stats.tx_dropped++;
-        
-        spin_unlock_irqrestore(&tp->lock, flags);
-        goto out;
-    }
-    
-    static void
-    rtl8168_tx_interrupt(struct net_device *dev,
-                         struct rtl8168_private *tp,
-                         void __iomem *ioaddr)
-    {
-        unsigned int dirty_tx, tx_left;
-        
-        assert(dev != NULL);
-        assert(tp != NULL);
-        assert(ioaddr != NULL);
-        
-        dirty_tx = tp->dirty_tx;
         smp_rmb();
-        tx_left = tp->cur_tx - dirty_tx;
-        
-        while (tx_left > 0) {
-            unsigned int entry = dirty_tx % NUM_TX_DESC;
-            struct ring_info *tx_skb = tp->tx_skb + entry;
-            u32 len = tx_skb->len;
-            u32 status;
-            
-            rmb();
-            status = le32_to_cpu(tp->TxDescArray[entry].opts1);
-            if (status & DescOwn)
-                break;
-            
-            RTLDEV->stats.tx_bytes += len;
-            RTLDEV->stats.tx_packets++;
-            
-            rtl8168_unmap_tx_skb(tp->pci_dev,
-                                 tx_skb,
-                                 tp->TxDescArray + entry);
-            
-            if (tx_skb->skb!=NULL) {
-                dev_kfree_skb_irq(tx_skb->skb);
-                tx_skb->skb = NULL;
-            }
-            dirty_tx++;
-            tx_left--;
+        if (TX_BUFFS_AVAIL(tp) >= MAX_SKB_FRAGS)
+            netif_wake_queue(dev);
+    }
+
+    spin_unlock_irqrestore(&tp->lock, flags);
+
+out:
+    return ret;
+err_stop:
+    netif_stop_queue(dev);
+    ret = NETDEV_TX_BUSY;
+    RTLDEV->stats.tx_dropped++;
+
+    spin_unlock_irqrestore(&tp->lock, flags);
+    goto out;
+}
+
+static void
+rtl8168_tx_interrupt(struct net_device *dev,
+                     struct rtl8168_private *tp,
+                     void __iomem *ioaddr)
+{
+    unsigned int dirty_tx, tx_left;
+
+    assert(dev != NULL);
+    assert(tp != NULL);
+    assert(ioaddr != NULL);
+
+    dirty_tx = tp->dirty_tx;
+    smp_rmb();
+    tx_left = tp->cur_tx - dirty_tx;
+
+    while (tx_left > 0) {
+        unsigned int entry = dirty_tx % NUM_TX_DESC;
+        struct ring_info *tx_skb = tp->tx_skb + entry;
+        u32 len = tx_skb->len;
+        u32 status;
+
+        rmb();
+        status = le32_to_cpu(tp->TxDescArray[entry].opts1);
+        if (status & DescOwn)
+            break;
+
+        RTLDEV->stats.tx_bytes += len;
+        RTLDEV->stats.tx_packets++;
+
+        rtl8168_unmap_tx_skb(tp->pci_dev,
+                             tx_skb,
+                             tp->TxDescArray + entry);
+
+        if (tx_skb->skb!=NULL) {
+            dev_kfree_skb_irq(tx_skb->skb);
+            tx_skb->skb = NULL;
         }
-        
-        if (tp->dirty_tx != dirty_tx) {
-            tp->dirty_tx = dirty_tx;
-            smp_wmb();
-            if (netif_queue_stopped(dev) &&
-                (TX_BUFFS_AVAIL(tp) >= MAX_SKB_FRAGS)) {
-                netif_wake_queue(dev);
-            }
-            smp_rmb();
-            if (tp->cur_tx != dirty_tx)
-                RTL_W8(TxPoll, NPQ);
+        dirty_tx++;
+        tx_left--;
+    }
+
+    if (tp->dirty_tx != dirty_tx) {
+        tp->dirty_tx = dirty_tx;
+        smp_wmb();
+        if (netif_queue_stopped(dev) &&
+            (TX_BUFFS_AVAIL(tp) >= MAX_SKB_FRAGS)) {
+            netif_wake_queue(dev);
+        }
+        smp_rmb();
+        if (tp->cur_tx != dirty_tx)
+            RTL_W8(TxPoll, NPQ);
+    }
+}
+
+static inline int
+rtl8168_fragmented_frame(u32 status)
+{
+    return (status & (FirstFrag | LastFrag)) != (FirstFrag | LastFrag);
+}
+
+static inline void
+rtl8168_rx_csum(struct rtl8168_private *tp,
+                struct sk_buff *skb,
+                struct RxDesc *desc)
+{
+    u32 opts1 = le32_to_cpu(desc->opts1);
+    u32 opts2 = le32_to_cpu(desc->opts2);
+    u32 status = opts1 & RxProtoMask;
+
+    if ((tp->mcfg == CFG_METHOD_1) ||
+        (tp->mcfg == CFG_METHOD_2) ||
+        (tp->mcfg == CFG_METHOD_3)) {
+        /* rx csum offload for RTL8168B/8111B */
+        if (((status == RxProtoTCP) && !(opts1 & RxTCPF)) ||
+            ((status == RxProtoUDP) && !(opts1 & RxUDPF)) ||
+            ((status == RxProtoIP) && !(opts1 & RxIPF)))
+            skb->ip_summed = CHECKSUM_UNNECESSARY;
+        else
+            skb->ip_summed = CHECKSUM_NONE;
+    } else {
+        /* rx csum offload for RTL8168C/8111C and RTL8168CP/8111CP */
+        if (((status == RxTCPT) && !(opts1 & RxTCPF)) ||
+            ((status == RxUDPT) && !(opts1 & RxUDPF)) ||
+            ((status == 0) && (opts2 & RxV4F) && !(opts1 & RxIPF)))
+            skb->ip_summed = CHECKSUM_UNNECESSARY;
+        else
+            skb->ip_summed = CHECKSUM_NONE;
+    }
+}
+
+static inline int
+rtl8168_try_rx_copy(struct sk_buff **sk_buff,
+                    int pkt_size,
+                    struct RxDesc *desc,
+                    int rx_buf_sz)
+{
+    int ret = -1;
+
+    if (pkt_size < rx_copybreak) {
+        struct sk_buff *skb;
+
+        skb = dev_alloc_skb(pkt_size + RTK_RX_ALIGN);
+        if (skb) {
+            skb_reserve(skb, RTK_RX_ALIGN);
+            eth_copy_and_sum(skb, sk_buff[0]->data, pkt_size, 0);
+            *sk_buff = skb;
+            rtl8168_mark_to_asic(desc, rx_buf_sz);
+            ret = 0;
         }
     }
-    
-    static inline int
-    rtl8168_fragmented_frame(u32 status)
-    {
-        return (status & (FirstFrag | LastFrag)) != (FirstFrag | LastFrag);
-    }
-    
-    static inline void
-    rtl8168_rx_csum(struct rtl8168_private *tp,
-                    struct sk_buff *skb,
-                    struct RxDesc *desc)
-    {
-        u32 opts1 = le32_to_cpu(desc->opts1);
-        u32 opts2 = le32_to_cpu(desc->opts2);
-        u32 status = opts1 & RxProtoMask;
-        
-        if ((tp->mcfg == CFG_METHOD_1) ||
-            (tp->mcfg == CFG_METHOD_2) ||
-            (tp->mcfg == CFG_METHOD_3)) {
-            /* rx csum offload for RTL8168B/8111B */
-            if (((status == RxProtoTCP) && !(opts1 & RxTCPF)) ||
-                ((status == RxProtoUDP) && !(opts1 & RxUDPF)) ||
-                ((status == RxProtoIP) && !(opts1 & RxIPF)))
-                skb->ip_summed = CHECKSUM_UNNECESSARY;
-            else
-                skb->ip_summed = CHECKSUM_NONE;
-        } else {
-            /* rx csum offload for RTL8168C/8111C and RTL8168CP/8111CP */
-            if (((status == RxTCPT) && !(opts1 & RxTCPF)) ||
-                ((status == RxUDPT) && !(opts1 & RxUDPF)) ||
-                ((status == 0) && (opts2 & RxV4F) && !(opts1 & RxIPF)))
-                skb->ip_summed = CHECKSUM_UNNECESSARY;
-            else
-                skb->ip_summed = CHECKSUM_NONE;
-        }
-    }
-    
-    static inline int
-    rtl8168_try_rx_copy(struct sk_buff **sk_buff,
-                        int pkt_size,
-                        struct RxDesc *desc,
-                        int rx_buf_sz)
-    {
-        int ret = -1;
-        
-        if (pkt_size < rx_copybreak) {
-            struct sk_buff *skb;
-            
-            skb = dev_alloc_skb(pkt_size + NET_IP_ALIGN);
-            if (skb) {
-                skb_reserve(skb, NET_IP_ALIGN);
-                eth_copy_and_sum(skb, sk_buff[0]->data, pkt_size, 0);
-                *sk_buff = skb;
-                rtl8168_mark_to_asic(desc, rx_buf_sz);
-                ret = 0;
-            }
-        }
-        return ret;
-    }
-    
-    static inline void
-    rtl8168_rx_skb(struct rtl8168_private *tp,
-                   struct sk_buff *skb)
-    {
+    return ret;
+}
+
+static inline void
+rtl8168_rx_skb(struct rtl8168_private *tp,
+               struct sk_buff *skb)
+{
 #ifdef CONFIG_R8168_NAPI
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
-        netif_receive_skb(skb);
+    netif_receive_skb(skb);
 #else
-        napi_gro_receive(&tp->napi, skb);
+    napi_gro_receive(&tp->napi, skb);
 #endif
 #else
-        netif_rx(skb);
+    netif_rx(skb);
 #endif
-    }
-    
-    static int
-    rtl8168_rx_interrupt(struct net_device *dev,
-                         struct rtl8168_private *tp,
-                         void __iomem *ioaddr, u32 budget)
-    {
-        unsigned int cur_rx, rx_left;
-        unsigned int delta, count = 0;
-        u32 rx_quota = RTL_RX_QUOTA(dev, budget);
-        
-        assert(dev != NULL);
-        assert(tp != NULL);
-        assert(ioaddr != NULL);
-        
-        cur_rx = tp->cur_rx;
-        rx_left = NUM_RX_DESC + tp->dirty_rx - cur_rx;
-        rx_left = rtl8168_rx_quota(rx_left, (u32) rx_quota);
-        
-        if ((tp->RxDescArray == NULL) || (tp->Rx_skbuff == NULL))
-            goto rx_out;
-        
-        for (; rx_left > 0; rx_left--, cur_rx++) {
-            unsigned int entry = cur_rx % NUM_RX_DESC;
-            struct RxDesc *desc = tp->RxDescArray + entry;
-            u32 status;
-            
-            rmb();
-            status = le32_to_cpu(desc->opts1);
-            
-            if (status & DescOwn)
-                break;
-            if (unlikely(status & RxRES)) {
-                if (netif_msg_rx_err(tp)) {
-                    printk(KERN_INFO
-                           "%s: Rx ERROR. status = %08x\n",
-                           dev->name, status);
-                }
-                
-                RTLDEV->stats.rx_errors++;
-                
-                if (status & (RxRWT | RxRUNT))
-                    RTLDEV->stats.rx_length_errors++;
-                if (status & RxCRC)
-                    RTLDEV->stats.rx_crc_errors++;
+}
+
+static int
+rtl8168_rx_interrupt(struct net_device *dev,
+                     struct rtl8168_private *tp,
+                     void __iomem *ioaddr, u32 budget)
+{
+    unsigned int cur_rx, rx_left;
+    unsigned int delta, count = 0;
+    u32 rx_quota = RTL_RX_QUOTA(dev, budget);
+
+    assert(dev != NULL);
+    assert(tp != NULL);
+    assert(ioaddr != NULL);
+
+    cur_rx = tp->cur_rx;
+    rx_left = NUM_RX_DESC + tp->dirty_rx - cur_rx;
+    rx_left = rtl8168_rx_quota(rx_left, (u32) rx_quota);
+
+    if ((tp->RxDescArray == NULL) || (tp->Rx_skbuff == NULL))
+        goto rx_out;
+
+    for (; rx_left > 0; rx_left--, cur_rx++) {
+        unsigned int entry = cur_rx % NUM_RX_DESC;
+        struct RxDesc *desc = tp->RxDescArray + entry;
+        u32 status;
+
+        rmb();
+        status = le32_to_cpu(desc->opts1);
+
+        if (status & DescOwn)
+            break;
+        if (unlikely(status & RxRES)) {
+            if (netif_msg_rx_err(tp)) {
+                printk(KERN_INFO
+                       "%s: Rx ERROR. status = %08x\n",
+                       dev->name, status);
+            }
+
+            RTLDEV->stats.rx_errors++;
+
+            if (status & (RxRWT | RxRUNT))
+                RTLDEV->stats.rx_length_errors++;
+            if (status & RxCRC)
+                RTLDEV->stats.rx_crc_errors++;
+            rtl8168_mark_to_asic(desc, tp->rx_buf_sz);
+        } else {
+            struct sk_buff *skb = tp->Rx_skbuff[entry];
+            int pkt_size = (status & 0x00003FFF) - 4;
+            void (*pci_action)(struct pci_dev *, dma_addr_t,
+                               size_t, int) = pci_dma_sync_single_for_device;
+
+            /*
+             * The driver does not support incoming fragmented
+             * frames. They are seen as a symptom of over-mtu
+             * sized frames.
+             */
+            if (unlikely(rtl8168_fragmented_frame(status))) {
+                RTLDEV->stats.rx_dropped++;
+                RTLDEV->stats.rx_length_errors++;
                 rtl8168_mark_to_asic(desc, tp->rx_buf_sz);
-            } else {
-                struct sk_buff *skb = tp->Rx_skbuff[entry];
-                int pkt_size = (status & 0x00003FFF) - 4;
-                void (*pci_action)(struct pci_dev *, dma_addr_t,
-                                   size_t, int) = pci_dma_sync_single_for_device;
-                
-                /*
-                 * The driver does not support incoming fragmented
-                 * frames. They are seen as a symptom of over-mtu
-                 * sized frames.
-                 */
-                if (unlikely(rtl8168_fragmented_frame(status))) {
-                    RTLDEV->stats.rx_dropped++;
-                    RTLDEV->stats.rx_length_errors++;
-                    rtl8168_mark_to_asic(desc, tp->rx_buf_sz);
-                    continue;
-                }
-                
-                if (tp->cp_cmd & RxChkSum)
-                    rtl8168_rx_csum(tp, skb, desc);
-                
-                pci_dma_sync_single_for_cpu(tp->pci_dev,
-                                            le64_to_cpu(desc->addr), tp->rx_buf_sz,
-                                            PCI_DMA_FROMDEVICE);
-                
-                if (rtl8168_try_rx_copy(&skb, pkt_size, desc,
-                                        tp->rx_buf_sz)) {
-                    pci_action = pci_unmap_single;
-                    tp->Rx_skbuff[entry] = NULL;
-                }
-                
-                pci_action(tp->pci_dev, le64_to_cpu(desc->addr),
-                           tp->rx_buf_sz, PCI_DMA_FROMDEVICE);
-                
-                skb->dev = dev;
-                skb_put(skb, pkt_size);
-                skb->protocol = eth_type_trans(skb, dev);
-                
-                if (rtl8168_rx_vlan_skb(tp, desc, skb) < 0)
-                    rtl8168_rx_skb(tp, skb);
-                
-                dev->last_rx = jiffies;
-                RTLDEV->stats.rx_bytes += pkt_size;
-                RTLDEV->stats.rx_packets++;
+                continue;
+            }
+
+            if (tp->cp_cmd & RxChkSum)
+                rtl8168_rx_csum(tp, skb, desc);
+
+            pci_dma_sync_single_for_cpu(tp->pci_dev,
+                                        le64_to_cpu(desc->addr), tp->rx_buf_sz,
+                                        PCI_DMA_FROMDEVICE);
+
+            if (rtl8168_try_rx_copy(&skb, pkt_size, desc,
+                                    tp->rx_buf_sz)) {
+                pci_action = pci_unmap_single;
+                tp->Rx_skbuff[entry] = NULL;
+            }
+
+            pci_action(tp->pci_dev, le64_to_cpu(desc->addr),
+                       tp->rx_buf_sz, PCI_DMA_FROMDEVICE);
+
+            skb->dev = dev;
+            skb_put(skb, pkt_size);
+            skb->protocol = eth_type_trans(skb, dev);
+
+            if (rtl8168_rx_vlan_skb(tp, desc, skb) < 0)
+                rtl8168_rx_skb(tp, skb);
+
+            dev->last_rx = jiffies;
+            RTLDEV->stats.rx_bytes += pkt_size;
+            RTLDEV->stats.rx_packets++;
+        }
+    }
+
+    count = cur_rx - tp->cur_rx;
+    tp->cur_rx = cur_rx;
+
+    delta = rtl8168_rx_fill(tp, dev, tp->dirty_rx, tp->cur_rx);
+    if (!delta && count && netif_msg_intr(tp))
+        printk(KERN_INFO "%s: no Rx buffer allocated\n", dev->name);
+    tp->dirty_rx += delta;
+
+    /*
+     * FIXME: until there is periodic timer to try and refill the ring,
+     * a temporary shortage may definitely kill the Rx process.
+     * - disable the asic to try and avoid an overflow and kick it again
+     *   after refill ?
+     * - how do others driver handle this condition (Uh oh...).
+     */
+    if ((tp->dirty_rx + NUM_RX_DESC == tp->cur_rx) && netif_msg_intr(tp))
+        printk(KERN_EMERG "%s: Rx buffers exhausted\n", dev->name);
+
+rx_out:
+    return count;
+}
+
+/*
+ *The interrupt handler does all of the Rx thread work and cleans up after
+ *the Tx thread.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+static irqreturn_t rtl8168_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+#else
+static irqreturn_t rtl8168_interrupt(int irq, void *dev_instance)
+#endif
+{
+    struct net_device *dev = (struct net_device *) dev_instance;
+    struct rtl8168_private *tp = netdev_priv(dev);
+    void __iomem *ioaddr = tp->mmio_addr;
+    int status;
+    int handled = 0;
+
+    do {
+        status = RTL_R16(IntrStatus);
+
+        /* hotplug/major error/no more work/shared irq */
+        if ((status == 0xFFFF) || !status)
+            break;
+
+        if (!(status & (tp->intr_mask | tp->timer_intr_mask)))
+            break;
+
+        if (unlikely(!netif_running(dev))) {
+            break;
+        }
+
+        handled = 1;
+
+        rtl8168_disable_hw_interrupt(tp, ioaddr);
+
+        switch (tp->mcfg) {
+        case CFG_METHOD_9:
+        case CFG_METHOD_10:
+        case CFG_METHOD_11:
+        case CFG_METHOD_12:
+        case CFG_METHOD_13:
+        case CFG_METHOD_14:
+        case CFG_METHOD_15:
+        case CFG_METHOD_16:
+        case CFG_METHOD_17:
+        case CFG_METHOD_18:
+        case CFG_METHOD_19:
+        case CFG_METHOD_20:
+        case CFG_METHOD_21:
+        case CFG_METHOD_22:
+        case CFG_METHOD_23:
+        case CFG_METHOD_24:
+        case CFG_METHOD_25:
+        case CFG_METHOD_26:
+        case CFG_METHOD_27:
+        case CFG_METHOD_28:
+            /* RX_OVERFLOW RE-START mechanism now HW handles it automatically*/
+            RTL_W16(IntrStatus, status&~RxFIFOOver);
+            break;
+        default:
+            RTL_W16(IntrStatus, status);
+            break;
+        }
+
+        //Work around for rx fifo overflow
+        if (unlikely(status & RxFIFOOver)) {
+            if (tp->mcfg == CFG_METHOD_1) {
+                tp->rx_fifo_overflow = 1;
+                netif_stop_queue(dev);
+                udelay(300);
+                rtl8168_rx_clear(tp);
+                rtl8168_init_ring(dev);
+                rtl8168_hw_start(dev);
+                RTL_W16(IntrStatus, RxFIFOOver);
+                netif_wake_queue(dev);
+                tp->rx_fifo_overflow = 0;
             }
         }
-        
-        count = cur_rx - tp->cur_rx;
-        tp->cur_rx = cur_rx;
-        
-        delta = rtl8168_rx_fill(tp, dev, tp->dirty_rx, tp->cur_rx);
-        if (!delta && count && netif_msg_intr(tp))
-            printk(KERN_INFO "%s: no Rx buffer allocated\n", dev->name);
-        tp->dirty_rx += delta;
-        
-        /*
-         * FIXME: until there is periodic timer to try and refill the ring,
-         * a temporary shortage may definitely kill the Rx process.
-         * - disable the asic to try and avoid an overflow and kick it again
-         *   after refill ?
-         * - how do others driver handle this condition (Uh oh...).
-         */
-        if ((tp->dirty_rx + NUM_RX_DESC == tp->cur_rx) && netif_msg_intr(tp))
-            printk(KERN_EMERG "%s: Rx buffers exhausted\n", dev->name);
-        
-    rx_out:
-        return count;
-    }
-    
-    static inline void
-    rtl8168_switch_to_hw_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
-    {
-        RTL_W32(TimeIntr, 0x0000);
-        RTL_W16(IntrMask, tp->intr_mask);
-    }
-    
-    static inline void
-    rtl8168_switch_to_timer_interrupt(struct rtl8168_private *tp, void __iomem *ioaddr)
-    {
-        if (tp->use_timer_interrrupt) {
-            RTL_W32(TCTR, timer_count);
-            RTL_W32(TimeIntr, timer_count);
-            RTL_W16(IntrMask, PCSTimeout);
+
+#ifdef ENABLE_DASH_SUPPORT
+        if ( tp->DASH ) {
+            if( HW_DASH_SUPPORT_TYPE_2( tp ) ) {
+                u8 DashIntType2Status;
+
+                DashIntType2Status = RTL_R8(IBISR0);
+                if (DashIntType2Status & ISRIMR_DASH_TYPE2_ROK) {
+                    tp->RcvFwDashOkEvt = TRUE;
+                }
+                if (DashIntType2Status & ISRIMR_DASH_TYPE2_TOK) {
+                    tp->SendFwHostOkEvt = TRUE;
+                }
+                if(DashIntType2Status & ISRIMR_DASH_TYPE2_RX_DISABLE_IDLE) {
+                    tp->DashFwDisableRx = TRUE;
+                }
+
+                RTL_W8(IBISR0, DashIntType2Status);
+
+                //hau_dbg
+                //printk("status = %X DashIntType2Status = %X.\n", status, DashIntType2Status);
+            } else {
+                if (IntrStatus & ISRIMR_DP_REQSYS_OK) {
+                    tp->RcvFwReqSysOkEvt = TRUE;
+                }
+                if (IntrStatus & ISRIMR_DP_DASH_OK) {
+                    tp->RcvFwDashOkEvt = TRUE;
+                }
+                if (IntrStatus & ISRIMR_DP_HOST_OK) {
+                    tp->SendFwHostOkEvt = TRUE;
+                }
+            }
+        }
+#endif
+
+#ifdef CONFIG_R8168_NAPI
+        if (status & tp->intr_mask || tp->keep_intr_cnt > 0) {
+            if (tp->keep_intr_cnt > 0) tp->keep_intr_cnt--;
+
+            if (likely(RTL_NETIF_RX_SCHEDULE_PREP(dev, &tp->napi)))
+                __RTL_NETIF_RX_SCHEDULE(dev, &tp->napi);
+            else if (netif_msg_intr(tp))
+                printk(KERN_INFO "%s: interrupt %04x in poll\n",
+                       dev->name, status);
         } else {
+            tp->keep_intr_cnt = RTK_KEEP_INTERRUPT_COUNT;
             rtl8168_switch_to_hw_interrupt(tp, ioaddr);
         }
-    }
-    
-    /*
-     *The interrupt handler does all of the Rx thread work and cleans up after
-     *the Tx thread.
-     */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
-    static irqreturn_t rtl8168_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 #else
-    static irqreturn_t rtl8168_interrupt(int irq, void *dev_instance)
-#endif
-    {
-        struct net_device *dev = (struct net_device *) dev_instance;
-        struct rtl8168_private *tp = netdev_priv(dev);
-        void __iomem *ioaddr = tp->mmio_addr;
-        int status;
-        int handled = 0;
-        
-        do {
-            status = RTL_R16(IntrStatus);
-            
-            /* hotplug/major error/no more work/shared irq */
-            if ((status == 0xFFFF) || !status)
-                break;
-            
-            if (!(status & (tp->intr_mask | PCSTimeout)))
-                break;
-            
-            if (unlikely(!netif_running(dev))) {
-                break;
-            }
-            
-            handled = 1;
-            
-            RTL_W16(IntrMask, 0x0000);
-            
-            switch (tp->mcfg) {
-                case CFG_METHOD_9:
-                case CFG_METHOD_10:
-                case CFG_METHOD_11:
-                case CFG_METHOD_12:
-                case CFG_METHOD_13:
-                case CFG_METHOD_14:
-                case CFG_METHOD_15:
-                case CFG_METHOD_16:
-                case CFG_METHOD_17:
-                case CFG_METHOD_18:
-                case CFG_METHOD_19:
-                case CFG_METHOD_20:
-                case CFG_METHOD_21:
-                case CFG_METHOD_22:
-                case CFG_METHOD_23:
-                case CFG_METHOD_24:
-                case CFG_METHOD_25:
-                case CFG_METHOD_26:
-                case CFG_METHOD_27:
-                    /* RX_OVERFLOW RE-START mechanism now HW handles it automatically*/
-                    RTL_W16(IntrStatus, status&~RxFIFOOver);
-                    break;
-                default:
-                    RTL_W16(IntrStatus, status);
-                    break;
-            }
-            
-            //Work around for rx fifo overflow
-            if (unlikely(status & RxFIFOOver))
-                if (tp->mcfg == CFG_METHOD_1) {
-                    tp->rx_fifo_overflow = 1;
-                    netif_stop_queue(dev);
-                    udelay(300);
-                    rtl8168_rx_clear(tp);
-                    rtl8168_init_ring(dev);
-                    rtl8168_hw_start(dev);
-                    RTL_W16(IntrStatus, RxFIFOOver);
-                    netif_wake_queue(dev);
-                    tp->rx_fifo_overflow = 0;
-                }
-            
-#ifdef CONFIG_R8168_NAPI
-            if (status & tp->intr_mask) {
-                if (likely(RTL_NETIF_RX_SCHEDULE_PREP(dev, &tp->napi)))
-                    __RTL_NETIF_RX_SCHEDULE(dev, &tp->napi);
-                else if (netif_msg_intr(tp))
-                    printk(KERN_INFO "%s: interrupt %04x in poll\n",
-                           dev->name, status);
-            } else
-                rtl8168_switch_to_hw_interrupt(tp, ioaddr);
-#else
-            if (status & tp->intr_mask) {
-                rtl8168_rx_interrupt(dev, tp, tp->mmio_addr, ~(u32)0);
-                rtl8168_tx_interrupt(dev, tp, ioaddr);
-                
-                rtl8168_switch_to_timer_interrupt(tp, ioaddr);
-            } else
-                rtl8168_switch_to_hw_interrupt(tp, ioaddr);
-#endif
-            
-        } while (false);
-        
-        return IRQ_RETVAL(handled);
-    }
-    
-#ifdef CONFIG_R8168_NAPI
-    static int rtl8168_poll(napi_ptr napi, napi_budget budget)
-    {
-        struct rtl8168_private *tp = RTL_GET_PRIV(napi, struct rtl8168_private);
-        void __iomem *ioaddr = tp->mmio_addr;
-        RTL_GET_NETDEV(tp)
-        unsigned int work_to_do = RTL_NAPI_QUOTA(budget, dev);
-        unsigned int work_done;
-        unsigned long flags;
-        
-        
-        
-        work_done = rtl8168_rx_interrupt(dev, tp, ioaddr, (u32) budget);
-        
-        spin_lock_irqsave(&tp->lock, flags);
-        rtl8168_tx_interrupt(dev, tp, ioaddr);
-        spin_unlock_irqrestore(&tp->lock, flags);
-        
-        RTL_NAPI_QUOTA_UPDATE(dev, work_done, budget);
-        
-        if (work_done < work_to_do) {
-            RTL_NETIF_RX_COMPLETE(dev, napi);
-            /*
-             * 20040426: the barrier is not strictly required but the
-             * behavior of the irq handler could be less predictable
-             * without it. Btw, the lack of flush for the posted pci
-             * write is safe - FR
-             */
-            smp_wmb();
-            
-            rtl8168_switch_to_timer_interrupt(tp, ioaddr);
-        }
-        
-        return RTL_NAPI_RETURN_VALUE;
-    }
-#endif//CONFIG_R8168_NAPI
-    
-#endif  /* DISABLED_CODE */
+        if (status & tp->intr_mask || tp->keep_intr_cnt > 0) {
+            if (tp->keep_intr_cnt > 0) tp->keep_intr_cnt--;
 
-void rtl8168_sleep_rx_enable(struct net_device *dev)
+            rtl8168_rx_interrupt(dev, tp, tp->mmio_addr, ~(u32)0);
+            rtl8168_tx_interrupt(dev, tp, ioaddr);
+
+#ifdef ENABLE_DASH_SUPPORT
+            if ( tp->DASH ) {
+                struct net_device *dev = tp->dev;
+
+                HandleDashInterrupt(dev);
+            }
+#endif
+
+            rtl8168_switch_to_timer_interrupt(tp, ioaddr);
+        } else {
+            tp->keep_intr_cnt = RTK_KEEP_INTERRUPT_COUNT;
+            rtl8168_switch_to_hw_interrupt(tp, ioaddr);
+        }
+#endif
+
+    } while (false);
+
+    return IRQ_RETVAL(handled);
+}
+
+#ifdef CONFIG_R8168_NAPI
+static int rtl8168_poll(napi_ptr napi, napi_budget budget)
+{
+    struct rtl8168_private *tp = RTL_GET_PRIV(napi, struct rtl8168_private);
+    void __iomem *ioaddr = tp->mmio_addr;
+    RTL_GET_NETDEV(tp)
+    unsigned int work_to_do = RTL_NAPI_QUOTA(budget, dev);
+    unsigned int work_done;
+    unsigned long flags;
+
+
+
+    work_done = rtl8168_rx_interrupt(dev, tp, ioaddr, (u32) budget);
+
+    spin_lock_irqsave(&tp->lock, flags);
+    rtl8168_tx_interrupt(dev, tp, ioaddr);
+    spin_unlock_irqrestore(&tp->lock, flags);
+
+    RTL_NAPI_QUOTA_UPDATE(dev, work_done, budget);
+
+    if (work_done < work_to_do) {
+#ifdef ENABLE_DASH_SUPPORT
+        if ( tp->DASH ) {
+            struct net_device *dev = tp->dev;
+
+            spin_lock_irqsave(&tp->lock, flags);
+            HandleDashInterrupt(dev);
+            spin_unlock_irqrestore(&tp->lock, flags);
+        }
+#endif
+
+        RTL_NETIF_RX_COMPLETE(dev, napi);
+        /*
+         * 20040426: the barrier is not strictly required but the
+         * behavior of the irq handler could be less predictable
+         * without it. Btw, the lack of flush for the posted pci
+         * write is safe - FR
+         */
+        smp_wmb();
+
+        rtl8168_switch_to_timer_interrupt(tp, ioaddr);
+    }
+
+    return RTL_NAPI_RETURN_VALUE;
+}
+#endif//CONFIG_R8168_NAPI
+
+static void rtl8168_sleep_rx_enable(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     void __iomem *ioaddr = tp->mmio_addr;
-    
+
     if ((tp->mcfg == CFG_METHOD_1) || (tp->mcfg == CFG_METHOD_2)) {
         RTL_W8(ChipCmd, CmdReset);
-        //rtl8168_rx_desc_offset0_init(tp, 0);
+        rtl8168_rx_desc_offset0_init(tp, 0);
         RTL_W8(ChipCmd, CmdRxEnb);
     } else if (tp->mcfg == CFG_METHOD_14 || tp->mcfg == CFG_METHOD_15) {
         rtl8168_ephy_write(ioaddr, 0x19, 0xFF64);
         RTL_W32(RxConfig, RTL_R32(RxConfig) | AcceptBroadcast | AcceptMulticast | AcceptMyPhys);
     }
 }
-    
-#if  DISABLED_CODE
 
-    static void rtl8168_down(struct net_device *dev)
+static void rtl8168_down(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     unsigned long flags;
-    
+
     rtl8168_delete_esd_timer(dev, &tp->esd_timer);
-    
+
     rtl8168_delete_link_timer(dev, &tp->link_timer);
-    
+
 #ifdef CONFIG_R8168_NAPI
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
     napi_disable(&tp->napi);
@@ -19505,543 +19927,294 @@ void rtl8168_sleep_rx_enable(struct net_device *dev)
     netif_poll_disable(dev);
 #endif
 #endif
-    
+
     netif_stop_queue(dev);
-    
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,11)
     /* Give a racing hard_start_xmit a few cycles to complete. */
     synchronize_sched();  /* FIXME: should this be synchronize_irq()? */
 #endif
-    
+
     netif_carrier_off(dev);
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     rtl8168_dsm(dev, DSM_IF_DOWN);
-    
+
     rtl8168_hw_reset(dev);
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
-    
+
     synchronize_irq(dev->irq);
-    
+
     spin_lock_irqsave(&tp->lock, flags);
-    
+
     rtl8168_tx_clear(tp);
-    
+
     rtl8168_rx_clear(tp);
-    
+
     rtl8168_sleep_rx_enable(dev);
-    
+
     spin_unlock_irqrestore(&tp->lock, flags);
 }
-    
+
 static int rtl8168_close(struct net_device *dev)
 {
     struct rtl8168_private *tp = netdev_priv(dev);
     struct pci_dev *pdev = tp->pci_dev;
-    
+
     if (tp->TxDescArray!=NULL && tp->RxDescArray!=NULL) {
         rtl8168_down(dev);
-        
+
         rtl8168_hw_d3_para(dev);
-        
+
         rtl8168_powerdown_pll(dev);
-        
+
         free_irq(dev->irq, dev);
-        
+
         pci_free_consistent(pdev, R8168_RX_RING_BYTES, tp->RxDescArray,
                             tp->RxPhyAddr);
         pci_free_consistent(pdev, R8168_TX_RING_BYTES, tp->TxDescArray,
                             tp->TxPhyAddr);
         tp->TxDescArray = NULL;
         tp->RxDescArray = NULL;
-        
+
         if (tp->tally_vaddr!=NULL) {
             pci_free_consistent(pdev, sizeof(*tp->tally_vaddr), tp->tally_vaddr, tp->tally_paddr);
             tp->tally_vaddr = NULL;
         }
     }
-    
+
     return 0;
 }
-    
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,11)
-    static void rtl8168_shutdown(struct pci_dev *pdev)
-    {
-        struct net_device *dev = pci_get_drvdata(pdev);
-        struct rtl8168_private *tp = netdev_priv(dev);
-        
-        switch (tp->mcfg) {
-            case CFG_METHOD_11:
-            case CFG_METHOD_12:
-            case CFG_METHOD_13:
-            case CFG_METHOD_23:
-            case CFG_METHOD_27:
-                rtl8168_driver_stop(tp);
-                break;
-        }
-        
-        rtl8168_set_bios_setting(dev);
-        rtl8168_rar_set(tp, tp->org_mac_addr);
-        
-        if (s5wol == 0)
-            tp->wol_enabled = WOL_DISABLED;
-        
-        /*
-         if (s5wol) {
-         void __iomem *ioaddr = tp->mmio_addr;
-         u32 csi_tmp;
-         
-         RTL_W8(Cfg9346, Cfg9346_Unlock);
-         switch (tp->mcfg) {
-         case CFG_METHOD_16:
-         case CFG_METHOD_17:
-         case CFG_METHOD_18:
-         case CFG_METHOD_19:
-         case CFG_METHOD_20:
-         case CFG_METHOD_21:
-         case CFG_METHOD_22:
-         case CFG_METHOD_24:
-         case CFG_METHOD_25:
-         case CFG_METHOD_26:
-         csi_tmp = rtl8168_eri_read(ioaddr, 0xDE, 1, ERIAR_ExGMAC);
-         csi_tmp |= BIT_0;
-         rtl8168_eri_write(ioaddr, 0xDE, 1, csi_tmp, ERIAR_ExGMAC);
-         break;
-         default:
-         RTL_W8(Config3, RTL_R8(Config3) | MagicPacket);
-         break;
-         }
-         RTL_W8(Config5, RTL_R8(Config5) | LanWake);
-         RTL_W8(Cfg9346, Cfg9346_Lock);
-         
-         tp->wol_enabled = WOL_ENABLED;
-         }
-         */
-        
-        rtl8168_close(dev);
-        rtl8168_disable_msi(pdev, tp);
+static void rtl8168_shutdown(struct pci_dev *pdev)
+{
+    struct net_device *dev = pci_get_drvdata(pdev);
+    struct rtl8168_private *tp = netdev_priv(dev);
+
+    switch (tp->mcfg) {
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (tp->DASH)
+            rtl8168_driver_stop(tp);
+        break;
     }
+
+    rtl8168_set_bios_setting(dev);
+    rtl8168_rar_set(tp, tp->org_mac_addr);
+
+    if (s5wol == 0)
+        tp->wol_enabled = WOL_DISABLED;
+
+    /*
+    if (s5wol) {
+        void __iomem *ioaddr = tp->mmio_addr;
+        u32 csi_tmp;
+
+        RTL_W8(Cfg9346, Cfg9346_Unlock);
+        switch (tp->mcfg) {
+        case CFG_METHOD_16:
+        case CFG_METHOD_17:
+        case CFG_METHOD_18:
+        case CFG_METHOD_19:
+        case CFG_METHOD_20:
+        case CFG_METHOD_21:
+        case CFG_METHOD_22:
+        case CFG_METHOD_24:
+        case CFG_METHOD_25:
+        case CFG_METHOD_26:
+            csi_tmp = rtl8168_eri_read(ioaddr, 0xDE, 1, ERIAR_ExGMAC);
+            csi_tmp |= BIT_0;
+            rtl8168_eri_write(ioaddr, 0xDE, 1, csi_tmp, ERIAR_ExGMAC);
+            break;
+        default:
+            RTL_W8(Config3, RTL_R8(Config3) | MagicPacket);
+            break;
+        }
+        RTL_W8(Config5, RTL_R8(Config5) | LanWake);
+        RTL_W8(Cfg9346, Cfg9346_Lock);
+
+        tp->wol_enabled = WOL_ENABLED;
+    }
+    */
+
+    rtl8168_close(dev);
+    rtl8168_disable_msi(pdev, tp);
+}
 #endif
-    
-    /**
-     *  rtl8168_get_stats - Get rtl8168 read/write statistics
-     *  @dev: The Ethernet Device to get statistics for
-     *
-     *  Get TX/RX statistics for rtl8168
-     */
-    static struct
-    net_device_stats *rtl8168_get_stats(struct net_device *dev) {
+
+/**
+ *  rtl8168_get_stats - Get rtl8168 read/write statistics
+ *  @dev: The Ethernet Device to get statistics for
+ *
+ *  Get TX/RX statistics for rtl8168
+ */
+static struct
+net_device_stats *rtl8168_get_stats(struct net_device *dev) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-        struct rtl8168_private *tp = netdev_priv(dev);
+    struct rtl8168_private *tp = netdev_priv(dev);
 #endif
-        if (netif_running(dev)) {
-            //      spin_lock_irqsave(&tp->lock, flags);
-            //      spin_unlock_irqrestore(&tp->lock, flags);
-        }
-        
-        return &RTLDEV->stats;
+    if (netif_running(dev)) {
+//      spin_lock_irqsave(&tp->lock, flags);
+//      spin_unlock_irqrestore(&tp->lock, flags);
     }
-    
+
+    return &RTLDEV->stats;
+}
+
 #ifdef CONFIG_PM
-    
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
-    static int
-    rtl8168_suspend(struct pci_dev *pdev, u32 state)
+static int
+rtl8168_suspend(struct pci_dev *pdev, u32 state)
 #else
-    static int
-    rtl8168_suspend(struct pci_dev *pdev, pm_message_t state)
+static int
+rtl8168_suspend(struct pci_dev *pdev, pm_message_t state)
 #endif
-    {
-        struct net_device *dev = pci_get_drvdata(pdev);
-        struct rtl8168_private *tp = netdev_priv(dev);
+{
+    struct net_device *dev = pci_get_drvdata(pdev);
+    struct rtl8168_private *tp = netdev_priv(dev);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-        u32 pci_pm_state = pci_choose_state(pdev, state);
+    u32 pci_pm_state = pci_choose_state(pdev, state);
 #endif
-        unsigned long flags;
-        
-        if (!netif_running(dev))
-            goto out;
-        
-        rtl8168_delete_esd_timer(dev, &tp->esd_timer);
-        
-        rtl8168_delete_link_timer(dev, &tp->link_timer);
-        
-        netif_stop_queue(dev);
-        
-        netif_carrier_off(dev);
-        
-        rtl8168_dsm(dev, DSM_NIC_GOTO_D3);
-        
-        netif_device_detach(dev);
-        
-        spin_lock_irqsave(&tp->lock, flags);
-        
-        rtl8168_hw_reset(dev);
-        
-        rtl8168_sleep_rx_enable(dev);
-        
-        rtl8168_hw_d3_para(dev);
-        
-        rtl8168_powerdown_pll(dev);
-        
-        spin_unlock_irqrestore(&tp->lock, flags);
-        
-        switch (tp->mcfg) {
-            case CFG_METHOD_11:
-            case CFG_METHOD_12:
-            case CFG_METHOD_13:
-            case CFG_METHOD_23:
-            case CFG_METHOD_27:
-                rtl8168_driver_stop(tp);
-                break;
-        }
-        
-    out:
-        
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-        pci_save_state(pdev, &pci_pm_state);
-#else
-        pci_save_state(pdev);
-#endif
-        pci_enable_wake(pdev, pci_choose_state(pdev, state), tp->wol_enabled);
-        //  pci_set_power_state(pdev, pci_choose_state(pdev, state));
-        
-        return 0;
+    unsigned long flags;
+
+    if (!netif_running(dev))
+        goto out;
+
+    rtl8168_delete_esd_timer(dev, &tp->esd_timer);
+
+    rtl8168_delete_link_timer(dev, &tp->link_timer);
+
+    netif_stop_queue(dev);
+
+    netif_carrier_off(dev);
+
+    rtl8168_dsm(dev, DSM_NIC_GOTO_D3);
+
+    netif_device_detach(dev);
+
+    spin_lock_irqsave(&tp->lock, flags);
+
+    rtl8168_hw_reset(dev);
+
+    rtl8168_sleep_rx_enable(dev);
+
+    rtl8168_hw_d3_para(dev);
+
+    rtl8168_powerdown_pll(dev);
+
+    spin_unlock_irqrestore(&tp->lock, flags);
+
+    switch (tp->mcfg) {
+    case CFG_METHOD_11:
+    case CFG_METHOD_12:
+    case CFG_METHOD_13:
+    case CFG_METHOD_23:
+    case CFG_METHOD_27:
+    case CFG_METHOD_28:
+        if (tp->DASH)
+            rtl8168_driver_stop(tp);
+        break;
     }
-    
-    static int
-    rtl8168_resume(struct pci_dev *pdev)
-    {
-        struct net_device *dev = pci_get_drvdata(pdev);
-        struct rtl8168_private *tp = netdev_priv(dev);
+
+out:
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-        u32 pci_pm_state = PCI_D0;
-#endif
-        
-        pci_set_power_state(pdev, PCI_D0);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-        pci_restore_state(pdev, &pci_pm_state);
+    pci_save_state(pdev, &pci_pm_state);
 #else
-        pci_restore_state(pdev);
+    pci_save_state(pdev);
 #endif
-        pci_enable_wake(pdev, PCI_D0, 0);
-        
-        /* restore last modified mac address */
-        rtl8168_rar_set(tp, dev->dev_addr);
-        
-        if (!netif_running(dev))
-            goto out;
-        
-        rtl8168_exit_oob(dev);
-        
-        rtl8168_rx_desc_offset0_init(tp, 1);
-        
-        rtl8168_dsm(dev, DSM_NIC_RESUME_D3);
-        
-        rtl8168_hw_init(dev);
-        
-        rtl8168_powerup_pll(dev);
-        
-        rtl8168_hw_ephy_config(dev);
-        
-        rtl8168_hw_phy_config(dev);
-        
-        rtl8168_schedule_work(dev, rtl8168_reset_task);
-        
-        netif_device_attach(dev);
-        
-        mod_timer(&tp->esd_timer, jiffies + RTL8168_ESD_TIMEOUT);
-        mod_timer(&tp->link_timer, jiffies + RTL8168_LINK_TIMEOUT);
-    out:
-        return 0;
-    }
-    
+    pci_enable_wake(pdev, pci_choose_state(pdev, state), tp->wol_enabled);
+//  pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+    return 0;
+}
+
+static int
+rtl8168_resume(struct pci_dev *pdev)
+{
+    struct net_device *dev = pci_get_drvdata(pdev);
+    struct rtl8168_private *tp = netdev_priv(dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+    u32 pci_pm_state = PCI_D0;
+#endif
+
+    pci_set_power_state(pdev, PCI_D0);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+    pci_restore_state(pdev, &pci_pm_state);
+#else
+    pci_restore_state(pdev);
+#endif
+    pci_enable_wake(pdev, PCI_D0, 0);
+
+    /* restore last modified mac address */
+    rtl8168_rar_set(tp, dev->dev_addr);
+
+    if (!netif_running(dev))
+        goto out;
+
+    rtl8168_exit_oob(dev);
+
+    rtl8168_rx_desc_offset0_init(tp, 1);
+
+    rtl8168_dsm(dev, DSM_NIC_RESUME_D3);
+
+    rtl8168_hw_init(dev);
+
+    rtl8168_powerup_pll(dev);
+
+    rtl8168_hw_ephy_config(dev);
+
+    rtl8168_hw_phy_config(dev);
+
+    rtl8168_schedule_work(dev, rtl8168_reset_task);
+
+    netif_device_attach(dev);
+
+    mod_timer(&tp->esd_timer, jiffies + RTL8168_ESD_TIMEOUT);
+    mod_timer(&tp->link_timer, jiffies + RTL8168_LINK_TIMEOUT);
+out:
+    return 0;
+}
+
 #endif /* CONFIG_PM */
-    
-    static struct pci_driver rtl8168_pci_driver = {
-        .name       = MODULENAME,
-        .id_table   = rtl8168_pci_tbl,
-        .probe      = rtl8168_init_one,
-        .remove     = __devexit_p(rtl8168_remove_one),
+
+static struct pci_driver rtl8168_pci_driver = {
+    .name       = MODULENAME,
+    .id_table   = rtl8168_pci_tbl,
+    .probe      = rtl8168_init_one,
+    .remove     = __devexit_p(rtl8168_remove_one),
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,11)
-        .shutdown   = rtl8168_shutdown,
+    .shutdown   = rtl8168_shutdown,
 #endif
 #ifdef CONFIG_PM
-        .suspend    = rtl8168_suspend,
-        .resume     = rtl8168_resume,
+    .suspend    = rtl8168_suspend,
+    .resume     = rtl8168_resume,
 #endif
-    };
-    
-    static int __init
-    rtl8168_init_module(void)
-    {
+};
+
+static int __init
+rtl8168_init_module(void)
+{
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,0)
-        return pci_register_driver(&rtl8168_pci_driver);
+    return pci_register_driver(&rtl8168_pci_driver);
 #else
-        return pci_module_init(&rtl8168_pci_driver);
+    return pci_module_init(&rtl8168_pci_driver);
 #endif
-    }
-    
-    static void __exit
-    rtl8168_cleanup_module(void)
-    {
-        pci_unregister_driver(&rtl8168_pci_driver);
-    }
-    
-    module_init(rtl8168_init_module);
-    module_exit(rtl8168_cleanup_module);
-    
-    
-#endif /* DISABLED_CODE */
-    
-#pragma mark --- EEPROM routines ---
-
-//-------------------------------------------------------------------
-//rtl_eeprom_type():
-//  tell the eeprom type
-//return value:
-//  0: the eeprom type is 93C46
-//  1: the eeprom type is 93C56 or 93C66
-//-------------------------------------------------------------------
-void rtl_eeprom_type(struct rtl8168_private *tp)
-{
-    void __iomem *ioaddr=tp->mmio_addr;
-    u16 magic = 0;
-    
-    if (tp->mcfg == CFG_METHOD_DEFAULT)
-        goto out_no_eeprom;
-    
-    if(RTL_R8(0xD2)&0x04) {
-        //not support
-        //tp->eeprom_type = EEPROM_TWSI;
-        //tp->eeprom_len = 256;
-        goto out_no_eeprom;
-    } else if(RTL_R32(RxConfig) & RxCfg_9356SEL) {
-        tp->eeprom_type = EEPROM_TYPE_93C56;
-        tp->eeprom_len = 256;
-    } else {
-        tp->eeprom_type = EEPROM_TYPE_93C46;
-        tp->eeprom_len = 128;
-    }
-    
-    magic = rtl_eeprom_read_sc(tp, 0);
-    
-out_no_eeprom:
-    if ((magic != 0x8129) && (magic != 0x8128)) {
-        tp->eeprom_type = EEPROM_TYPE_NONE;
-        tp->eeprom_len = 0;
-    }
 }
 
-void rtl_eeprom_cleanup(void __iomem *ioaddr)
+static void __exit
+rtl8168_cleanup_module(void)
 {
-    u8 x;
-    
-    x = RTL_R8(Cfg9346);
-    x &= ~(Cfg9346_EEDI | Cfg9346_EECS);
-    
-    RTL_W8(Cfg9346, x);
-    
-    rtl_raise_clock(&x, ioaddr);
-    rtl_lower_clock(&x, ioaddr);
+    pci_unregister_driver(&rtl8168_pci_driver);
 }
 
-int rtl_eeprom_cmd_done(void __iomem *ioaddr)
-{
-    u8 x;
-    int i;
-    
-    rtl_stand_by(ioaddr);
-    
-    for (i = 0; i < 50000; i++) {
-        x = RTL_R8(Cfg9346);
-        
-        if (x & Cfg9346_EEDO) {
-            udelay(RTL_CLOCK_RATE * 2 * 3);
-            return 0;
-        }
-        udelay(1);
-    }
-    
-    return -1;
-}
-
-//-------------------------------------------------------------------
-//rtl_eeprom_read_sc():
-//  read one word from eeprom
-//-------------------------------------------------------------------
-u16 rtl_eeprom_read_sc(struct rtl8168_private *tp, u16 reg)
-{
-    void __iomem *ioaddr=tp->mmio_addr;
-    int addr_sz = 6;
-    u8 x;
-    u16 data;
-    
-    if(tp->eeprom_type == EEPROM_TYPE_NONE) {
-        return -1;
-    }
-    
-    if (tp->eeprom_type==EEPROM_TYPE_93C46)
-        addr_sz = 6;
-    else if (tp->eeprom_type==EEPROM_TYPE_93C56)
-        addr_sz = 8;
-    
-    x = Cfg9346_EEM1 | Cfg9346_EECS;
-    RTL_W8(Cfg9346, x);
-    
-    rtl_shift_out_bits(RTL_EEPROM_READ_OPCODE, 3, ioaddr);
-    rtl_shift_out_bits(reg, addr_sz, ioaddr);
-    
-    data = rtl_shift_in_bits(ioaddr);
-    
-    rtl_eeprom_cleanup(ioaddr);
-    
-    RTL_W8(Cfg9346, 0);
-    
-    return data;
-}
-
-//-------------------------------------------------------------------
-//rtl_eeprom_write_sc():
-//  write one word to a specific address in the eeprom
-//-------------------------------------------------------------------
-void rtl_eeprom_write_sc(struct rtl8168_private *tp, u16 reg, u16 data)
-{
-    void __iomem *ioaddr=tp->mmio_addr;
-    u8 x;
-    int addr_sz = 6;
-    int w_dummy_addr = 4;
-    
-    if(tp->eeprom_type == EEPROM_TYPE_NONE) {
-        return ;
-    }
-    
-    if (tp->eeprom_type==EEPROM_TYPE_93C46) {
-        addr_sz = 6;
-        w_dummy_addr = 4;
-    } else if (tp->eeprom_type==EEPROM_TYPE_93C56) {
-        addr_sz = 8;
-        w_dummy_addr = 6;
-    }
-    
-    x = Cfg9346_EEM1 | Cfg9346_EECS;
-    RTL_W8(Cfg9346, x);
-    
-    rtl_shift_out_bits(RTL_EEPROM_EWEN_OPCODE, 5, ioaddr);
-    rtl_shift_out_bits(reg, w_dummy_addr, ioaddr);
-    rtl_stand_by(ioaddr);
-    
-    rtl_shift_out_bits(RTL_EEPROM_ERASE_OPCODE, 3, ioaddr);
-    rtl_shift_out_bits(reg, addr_sz, ioaddr);
-    if (rtl_eeprom_cmd_done(ioaddr) < 0) {
-        return;
-    }
-    rtl_stand_by(ioaddr);
-    
-    rtl_shift_out_bits(RTL_EEPROM_WRITE_OPCODE, 3, ioaddr);
-    rtl_shift_out_bits(reg, addr_sz, ioaddr);
-    rtl_shift_out_bits(data, 16, ioaddr);
-    if (rtl_eeprom_cmd_done(ioaddr) < 0) {
-        return;
-    }
-    rtl_stand_by(ioaddr);
-    
-    rtl_shift_out_bits(RTL_EEPROM_EWDS_OPCODE, 5, ioaddr);
-    rtl_shift_out_bits(reg, w_dummy_addr, ioaddr);
-    
-    rtl_eeprom_cleanup(ioaddr);
-    RTL_W8(Cfg9346, 0);
-}
-
-void rtl_raise_clock(u8 *x, void __iomem *ioaddr)
-{
-    *x = *x | Cfg9346_EESK;
-    RTL_W8(Cfg9346, *x);
-    udelay(RTL_CLOCK_RATE);
-}
-
-void rtl_lower_clock(u8 *x, void __iomem *ioaddr)
-{
-    
-    *x = *x & ~Cfg9346_EESK;
-    RTL_W8(Cfg9346, *x);
-    udelay(RTL_CLOCK_RATE);
-}
-
-void rtl_shift_out_bits(int data, int count, void __iomem *ioaddr)
-{
-    u8 x;
-    int  mask;
-    
-    mask = 0x01 << (count - 1);
-    x = RTL_R8(Cfg9346);
-    x &= ~(Cfg9346_EEDI | Cfg9346_EEDO);
-    
-    do {
-        if (data & mask)
-            x |= Cfg9346_EEDI;
-        else
-            x &= ~Cfg9346_EEDI;
-        
-        RTL_W8(Cfg9346, x);
-        udelay(RTL_CLOCK_RATE);
-        rtl_raise_clock(&x, ioaddr);
-        rtl_lower_clock(&x, ioaddr);
-        mask = mask >> 1;
-    } while(mask);
-    
-    x &= ~Cfg9346_EEDI;
-    RTL_W8(Cfg9346, x);
-}
-
-u16 rtl_shift_in_bits(void __iomem *ioaddr)
-{
-    u8 x;
-    u16 d, i;
-    
-    x = RTL_R8(Cfg9346);
-    x &= ~(Cfg9346_EEDI | Cfg9346_EEDO);
-    
-    d = 0;
-    
-    for (i = 0; i < 16; i++) {
-        d = d << 1;
-        rtl_raise_clock(&x, ioaddr);
-        
-        x = RTL_R8(Cfg9346);
-        x &= ~Cfg9346_EEDI;
-        
-        if (x & Cfg9346_EEDO)
-            d |= 1;
-        
-        rtl_lower_clock(&x, ioaddr);
-    }
-    
-    return d;
-}
-
-void rtl_stand_by(void __iomem *ioaddr)
-{
-    u8 x;
-    
-    x = RTL_R8(Cfg9346);
-    x &= ~(Cfg9346_EECS | Cfg9346_EESK);
-    RTL_W8(Cfg9346, x);
-    udelay(RTL_CLOCK_RATE);
-    
-    x |= Cfg9346_EECS;
-    RTL_W8(Cfg9346, x);
-}
-
-void rtl_set_eeprom_sel_low(void __iomem *ioaddr)
-{
-    RTL_W8(Cfg9346, Cfg9346_EEM1);
-    RTL_W8(Cfg9346, Cfg9346_EEM1 | Cfg9346_EESK);
-    
-    udelay(20);
-    
-    RTL_W8(Cfg9346, Cfg9346_EEM1);
-}
-
+module_init(rtl8168_init_module);
+module_exit(rtl8168_cleanup_module);
