@@ -1,29 +1,49 @@
+/* RealtekRTL8111Linux-803800.h -- Definitions shared with the linux driver code.
+ *
+ * Copyright (c) 2013 Laura Müller <laura-mueller@uni-duesseldorf.de>
+ * All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * Driver for Realtek RTL8111x PCIe ethernet controllers.
+ *
+ * This driver is based on Realtek's r8168 Linux driver (8.038.00).
+ */
+
 /*
-################################################################################
-#
-# r8168 is the Linux device driver released for Realtek Gigabit Ethernet
-# controllers with PCI-Express interface.
-#
-# Copyright(c) 2014 Realtek Semiconductor Corp. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by the Free
-# Software Foundation; either version 2 of the License, or (at your option)
-# any later version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-# more details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, see <http://www.gnu.org/licenses/>.
-#
-# Author:
-# Realtek NIC software team <nicfae@realtek.com>
-# No. 2, Innovation Road II, Hsinchu Science Park, Hsinchu 300, Taiwan
-#
-################################################################################
+ ################################################################################
+ #
+ # r8168 is the Linux device driver released for Realtek Gigabit Ethernet
+ # controllers with PCI-Express interface.
+ #
+ # Copyright(c) 2014 Realtek Semiconductor Corp. All rights reserved.
+ #
+ # This program is free software; you can redistribute it and/or modify it
+ # under the terms of the GNU General Public License as published by the Free
+ # Software Foundation; either version 2 of the License, or (at your option)
+ # any later version.
+ #
+ # This program is distributed in the hope that it will be useful, but WITHOUT
+ # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ # more details.
+ #
+ # You should have received a copy of the GNU General Public License along with
+ # this program; if not, see <http://www.gnu.org/licenses/>.
+ #
+ # Author:
+ # Realtek NIC software team <nicfae@realtek.com>
+ # No. 2, Innovation Road II, Hsinchu Science Park, Hsinchu 300, Taiwan
+ #
+ ################################################################################
 */
 
 /************************************************************************************
@@ -32,6 +52,9 @@
  ***********************************************************************************/
 
 #include "RealtekRTL8111Linux_dash-803800.h"
+#include "linux.h"
+#include "mii.h"
+#include "ethertool.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 #define NETIF_F_HW_VLAN_RX	NETIF_F_HW_VLAN_CTAG_RX
@@ -145,6 +168,8 @@ r8168  Copyright (C) 2013  Realtek NIC software team <nicfae@realtek.com> \n \
 This program comes with ABSOLUTELY NO WARRANTY; for details, please see <http://www.gnu.org/licenses/>. \n \
 This is free software, and you are welcome to redistribute it under certain conditions; see <http://www.gnu.org/licenses/>. \n"
 
+#if DISABLED_CODE
+
 #ifdef RTL8168_DEBUG
 #define assert(expr) \
         if(!(expr)) {                   \
@@ -156,6 +181,8 @@ This is free software, and you are welcome to redistribute it under certain cond
 #define assert(expr) do {} while (0)
 #define dprintk(fmt, args...)   do {} while (0)
 #endif /* RTL8168_DEBUG */
+
+#endif /* DISABLED_CODE */
 
 #define R8168_MSG_DEFAULT \
     (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN)
@@ -214,6 +241,8 @@ This is free software, and you are welcome to redistribute it under certain cond
 #define RTL8168_TX_TIMEOUT  (6 * HZ)
 #define RTL8168_LINK_TIMEOUT    (1 * HZ)
 #define RTL8168_ESD_TIMEOUT (2 * HZ)
+
+#if DISABLED_CODE
 
 #define NUM_TX_DESC 1024    /* Number of Tx descriptor registers */
 #define NUM_RX_DESC 1024    /* Number of Rx descriptor registers */
@@ -383,6 +412,8 @@ extern void __chk_io_ptr(void __iomem *);
     .vendor = (vend), .device = (dev), \
     .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
 #endif
+
+#endif /* DISABLED_CODE */
 
 /*****************************************************************************/
 /* 2.5.28 => 2.4.23 */
@@ -807,6 +838,7 @@ enum RTL8168_registers {
     MAC0            = 0x00,     /* Ethernet hardware address. */
     MAC4            = 0x04,
     MAR0            = 0x08,     /* Multicast filter. */
+    MAR1            = 0x0C,     /* Multicast filter. */
     CounterAddrLow      = 0x10,
     CounterAddrHigh     = 0x14,
     CustomLED       = 0x18,
@@ -1091,6 +1123,9 @@ enum _DescStatusBit {
     TxUDPCS_C   = (1 << 31), /* Calculate UDP/IP checksum */
     TxTCPCS_C   = (1 << 30), /* Calculate TCP/IP checksum */
     TxIPCS_C    = (1 << 29), /* Calculate IP checksum */
+    TxIPV6_C    = (1 << 28), /* IPv6 packet */
+    MSSShift_C  = 18,        /* MSS value position */
+    L4OffMask   = 0x3ffU,    /* Level 4 header offset mask */
     /*@@@@@@ offset 4 of tx descriptor => bits for RTL8168C/CP only     end @@@@@@*/
 
 
@@ -1218,6 +1253,8 @@ struct rtl8168_private {
     struct napi_struct napi;
 #endif
 #endif
+
+#if DISABLED_CODE
     struct net_device_stats stats;  /* statistics of net device */
     spinlock_t lock;        /* spin lock flag */
     spinlock_t phy_lock;        /* spin lock flag for GPHY */
@@ -1225,9 +1262,14 @@ struct rtl8168_private {
     u32 tx_tcp_csum_cmd;
     u32 tx_udp_csum_cmd;
     u32 tx_ip_csum_cmd;
+
+#endif /* DISABLED_CODE */
+
     int max_jumbo_frame_size;
     int chipset;
     u32 mcfg;
+
+#if DISABLED_CODE
     u32 cur_rx; /* Index into the Rx descriptor buffer of next Rx pkt. */
     u32 cur_tx; /* Index into the Tx descriptor buffer of next Rx pkt. */
     u32 dirty_rx;
@@ -1246,11 +1288,23 @@ struct rtl8168_private {
     unsigned int esd_flag;
     unsigned int pci_cfg_is_read;
     unsigned int rtl8168_rx_config;
+
+#endif /* DISABLED_CODE */
+
     u16 cp_cmd;
+
+#if DISABLED_CODE
+
     u16 intr_mask;
     u16 timer_intr_mask;
+
+#endif /* DISABLED_CODE */
+
     int phy_auto_nego_reg;
     int phy_1000_ctrl_reg;
+
+#if DISABLED_CODE
+
     u8 org_mac_addr[NODE_ADDRESS_SIZE];
     struct rtl8168_counters *tally_vaddr;
     dma_addr_t tally_paddr;
@@ -1258,12 +1312,16 @@ struct rtl8168_private {
 #ifdef CONFIG_R8168_VLAN
     struct vlan_group *vlgrp;
 #endif
+
+#endif /* DISABLED_CODE */
+
     u8  wol_enabled;
     u32 wol_opts;
     u8  efuse;
     u8  eeprom_type;
     u8  autoneg;
     u8  duplex;
+    u8  aspm;
     u16 speed;
     u16 eeprom_len;
     u16 cur_page;
@@ -1274,12 +1332,17 @@ struct rtl8168_private {
     void (*phy_reset_enable)(struct net_device *);
     unsigned int (*phy_reset_pending)(struct net_device *);
     unsigned int (*link_ok)(struct net_device *);
+
+#if DISABLED_CODE
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
     struct work_struct task;
 #else
     struct delayed_work task;
 #endif
     unsigned features;
+
+#endif /* DISABLED_CODE */
 
     u8 org_pci_offset_99;
     u8 org_pci_offset_180;
@@ -1290,6 +1353,9 @@ struct rtl8168_private {
     u8 use_timer_interrrupt;
 
     u8 in_open_fun;
+
+    //unsigned features;
+    UInt32 eeeEnable;
 
     u32 keep_intr_cnt;
 
@@ -1363,7 +1429,7 @@ struct rtl8168_private {
     u8 CmacResetIsr2nd ;
     u8 CmacResetting ;
     u8 CmacOobIssueCmacReset ;
-#endif
+#endif /* ENABLE_DASH_SUPPORT */
 
     //Dash-----------------
 };
@@ -1438,11 +1504,13 @@ u32 OCP_read(struct rtl8168_private *tp, u8 mask, u16 Reg);
 u32 rtl8168_eri_read(void __iomem *ioaddr, int addr, int len, int type);
 u16 rtl8168_ephy_read(void __iomem *ioaddr, int RegAddr);
 void OOB_mutex_unlock(struct rtl8168_private *tp);
+
+#if DISABLED_CODE
 void Dash2DisableTx(struct rtl8168_private *tp);
 void Dash2EnableTx(struct rtl8168_private *tp);
 void Dash2DisableRx(struct rtl8168_private *tp);
 void Dash2EnableRx(struct rtl8168_private *tp);
-
+#endif /* DISABLED_CODE */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34)
 #define netdev_mc_count(dev) ((dev)->mc_count)
@@ -1450,3 +1518,73 @@ void Dash2EnableRx(struct rtl8168_private *tp);
 #define netdev_for_each_mc_addr(mclist, dev) \
     for (mclist = dev->mc_list; mclist; mclist = mclist->next)
 #endif
+
+
+//EEPROM opcodes
+#define RTL_EEPROM_READ_OPCODE      06
+#define RTL_EEPROM_WRITE_OPCODE     05
+#define RTL_EEPROM_ERASE_OPCODE     07
+#define RTL_EEPROM_EWEN_OPCODE      19
+#define RTL_EEPROM_EWDS_OPCODE      16
+
+#define RTL_CLOCK_RATE  3
+
+void rtl_eeprom_type(struct rtl8168_private *tp);
+void rtl_eeprom_cleanup(void __iomem *ioaddr);
+u16 rtl_eeprom_read_sc(struct rtl8168_private *tp, u16 reg);
+void rtl_eeprom_write_sc(struct rtl8168_private *tp, u16 reg, u16 data);
+void rtl_shift_out_bits(int data, int count, void __iomem *ioaddr);
+u16 rtl_shift_in_bits(void __iomem *ioaddr);
+void rtl_raise_clock(u8 *x, void __iomem *ioaddr);
+void rtl_lower_clock(u8 *x, void __iomem *ioaddr);
+void rtl_stand_by(void __iomem *ioaddr);
+void rtl_set_eeprom_sel_low(void __iomem *ioaddr);
+
+struct RTLChipInfo {
+    const char *name;
+    u8 mcfg;
+    u32 RCR_Cfg;
+    u32 RxConfigMask;	/* Clears the bits supported by this chip */
+    u32 jumbo_frame_sz;
+};
+
+/* Functions from the linux driver which get called by C++ code. */
+
+void rtl8168_dsm(struct net_device *dev, int dev_state);
+void rtl8168_rar_set(struct rtl8168_private *tp, uint8_t *addr);
+int rtl8168_set_speed(struct net_device *dev, u8 autoneg, u16 speed, u8 duplex);
+void rtl8168dp_10mbps_gphy_para(struct net_device *dev);
+int rtl8168_eri_write(void __iomem *ioaddr, int addr, int len, u32 value, int type);
+u32 rtl8168_eri_read(void __iomem *ioaddr, int addr, int len, int type);
+void rtl8168_get_mac_version(struct rtl8168_private *tp, void __iomem *ioaddr);
+void rtl8168_print_mac_version(struct rtl8168_private *tp);
+int rtl8168_set_speed_xmii(struct net_device *dev, u8 autoneg, u16 speed, u8 duplex);
+void rtl8168_gset_xmii(struct net_device *dev, struct ethtool_cmd *cmd);
+void rtl8168_xmii_reset_enable(struct net_device *dev);
+unsigned int rtl8168_xmii_reset_pending(struct net_device *dev);
+unsigned int rtl8168_xmii_link_ok(struct net_device *dev);
+void rtl8168_driver_start(struct rtl8168_private *tp);
+void rtl8168_phy_power_up (struct net_device *dev);
+void rtl8168_hw_phy_config(struct net_device *dev);
+void rtl8168_powerup_pll(struct net_device *dev);
+void rtl8168_sleep_rx_enable(struct net_device *dev);
+void rtl8168_powerdown_pll(struct net_device *dev);
+void rtl8168_nic_reset(struct net_device *dev);
+void set_offset70F(struct rtl8168_private *tp, u8 setting);
+
+u32 rtl8168_csi_other_fun_read(struct rtl8168_private *tp, u8 multi_fun_sel_bit, u32 addr);
+void rtl8168_csi_other_fun_write(struct rtl8168_private *tp, u8 multi_fun_sel_bit, u32 addr, u32 value);
+void rtl8168_disable_rxdvgate(struct net_device *dev);
+void rtl8168_init_pci_offset_99(struct rtl8168_private *tp);
+void rtl8168_issue_offset_99_event(struct rtl8168_private *tp);
+void rtl8168_init_pci_offset_180(struct rtl8168_private *tp);
+void rtl8168_disable_pci_offset_180(struct rtl8168_private *tp);
+void rtl8168_disable_rxdvgate(struct net_device *dev);
+void rtl8168_exit_oob(struct net_device *dev);
+void rtl8168_hw_init(struct net_device *dev);
+u16 mac_ocp_read(struct rtl8168_private *tp, u16 reg_addr);
+void mac_ocp_write(struct rtl8168_private *tp, u16 reg_addr, u16 value);
+void rtl_set_eeprom_sel_low(void __iomem *ioaddr);
+void rtl8168_hw_ephy_config(struct net_device *dev);
+void rtl8168_get_hw_wol(struct net_device *dev);
+

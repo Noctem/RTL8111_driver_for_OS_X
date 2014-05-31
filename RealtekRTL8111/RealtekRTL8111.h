@@ -18,7 +18,7 @@
  * This driver is based on Realtek's r8168 Linux driver (8.037.0).
  */
 
-#include "RealtekRTL8111Linux-803700.h"
+#include "RealtekRTL8111Linux-803800.h"
 
 #ifdef DEBUG
 #define DebugLog(args...) IOLog(args)
