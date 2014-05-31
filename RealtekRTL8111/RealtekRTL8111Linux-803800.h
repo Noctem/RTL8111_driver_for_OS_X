@@ -51,7 +51,6 @@
  *  US6,570,884, US6,115,776, and US6,327,625.
  ***********************************************************************************/
 
-#include "RealtekRTL8111Linux_dash-803800.h"
 #include "linux.h"
 #include "mii.h"
 #include "ethertool.h"
@@ -1292,13 +1291,8 @@ struct rtl8168_private {
 #endif /* DISABLED_CODE */
 
     u16 cp_cmd;
-
-#if DISABLED_CODE
-
     u16 intr_mask;
     u16 timer_intr_mask;
-
-#endif /* DISABLED_CODE */
 
     int phy_auto_nego_reg;
     int phy_1000_ctrl_reg;

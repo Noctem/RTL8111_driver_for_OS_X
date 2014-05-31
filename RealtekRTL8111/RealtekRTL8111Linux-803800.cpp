@@ -286,6 +286,8 @@ const struct RTLChipInfo rtl_chip_info[] = {
 };
 #undef _R
 
+static int timer_count = 0x2600;
+
 #if DISABLED_CODE
 
 #ifndef PCI_VENDOR_ID_DLINK
@@ -301,7 +303,6 @@ static struct pci_device_id rtl8168_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, rtl8168_pci_tbl);
 
 static int rx_copybreak = 200;
-static int timer_count = 0x2600;
 
 static struct {
     u32 msg_enable;
@@ -369,7 +370,6 @@ static irqreturn_t rtl8168_interrupt(int irq, void *dev_instance, struct pt_regs
 #else
 static irqreturn_t rtl8168_interrupt(int irq, void *dev_instance);
 #endif
-static void rtl8168_rx_desc_offset0_init(struct rtl8168_private *, int);
 static int rtl8168_init_ring(struct net_device *dev);
 static void rtl8168_hw_start(struct net_device *dev);
 static int rtl8168_close(struct net_device *dev);
@@ -392,6 +392,7 @@ static void rtl8168_phy_power_up (struct net_device *dev);
 
 #endif  /* DISABLED_CODE */
 
+static void rtl8168_rx_desc_offset0_init(struct rtl8168_private *, int);
 static void rtl8168_phy_power_down (struct net_device *dev);
 
 #if DISABLED_CODE
@@ -1037,6 +1038,8 @@ static int rtl8168_check_dash(struct rtl8168_private *tp)
     }
 }
 
+#if DISABLED_CODE
+
 void Dash2DisableTx(struct rtl8168_private *tp)
 {
     void __iomem *ioaddr = tp->mmio_addr;
@@ -1108,6 +1111,8 @@ static void Dash2DisableTxRx(struct net_device *dev)
     }
 }
 
+#endif /* DISABLED_CODE */
+
 void rtl8168_driver_start(struct rtl8168_private *tp)
 {
     if (!tp->DASH)
@@ -1158,7 +1163,7 @@ static void rtl8168_driver_stop(struct rtl8168_private *tp)
         int timeout;
         u32 tmp_value;
 
-        Dash2DisableTxRx(dev);
+        //Dash2DisableTxRx(dev);
 
         OCP_write(tp, 0x1, 0x180, OOB_CMD_DRIVER_STOP);
         tmp_value = OCP_read(tp, 0xF, 0x30);
@@ -15099,7 +15104,7 @@ rtl8168_hw_phy_config(struct net_device *dev)
         mdio_write(tp, 0x00, 0x080B);
         mdio_write(tp, 0x0B, 0x09D7);
 
-        if (aspm) {
+        if (dev->aspm) {
             if (tp->HwHasWrRamCodeToMicroP == TRUE) {
                 mdio_write(tp, 0x1f, 0x0000);
                 mdio_write(tp, 0x15, 0x1006);
