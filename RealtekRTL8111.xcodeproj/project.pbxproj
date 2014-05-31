@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D33D08EF1890817100B48E37 /* RealtekRTL8111Linux-803700.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D33D08EE1890817100B48E37 /* RealtekRTL8111Linux-803700.cpp */; };
+		63EE09311939D46600A80EF9 /* RealtekRTL8111Linux-803800.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63EE092E1939D46600A80EF9 /* RealtekRTL8111Linux-803800.cpp */; };
+		63EE09321939D46600A80EF9 /* RealtekRTL8111Linux-803800.h in Headers */ = {isa = PBXBuildFile; fileRef = 63EE092F1939D46600A80EF9 /* RealtekRTL8111Linux-803800.h */; };
 		D37BD68916C605F500C255A2 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = D37BD68716C605F500C255A2 /* InfoPlist.strings */; };
 		D37BD69916C6065300C255A2 /* RealtekRTL8111.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D37BD69716C6065300C255A2 /* RealtekRTL8111.cpp */; };
 		D37BD69F16C6068D00C255A2 /* linux.h in Headers */ = {isa = PBXBuildFile; fileRef = D37BD69B16C6068D00C255A2 /* linux.h */; };
@@ -17,8 +18,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		D33D08ED1890815C00B48E37 /* RealtekRTL8111Linux-803700.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "RealtekRTL8111Linux-803700.h"; sourceTree = "<group>"; };
-		D33D08EE1890817100B48E37 /* RealtekRTL8111Linux-803700.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "RealtekRTL8111Linux-803700.cpp"; sourceTree = "<group>"; };
+		63EE092E1939D46600A80EF9 /* RealtekRTL8111Linux-803800.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "RealtekRTL8111Linux-803800.cpp"; sourceTree = "<group>"; };
+		63EE092F1939D46600A80EF9 /* RealtekRTL8111Linux-803800.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "RealtekRTL8111Linux-803800.h"; sourceTree = "<group>"; };
 		D37A5F5B16CAF7D600644820 /* gpl.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = gpl.txt; sourceTree = "<group>"; };
 		D37BD67F16C605F500C255A2 /* RealtekRTL8111.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RealtekRTL8111.kext; sourceTree = BUILT_PRODUCTS_DIR; };
 		D37BD68316C605F500C255A2 /* Kernel.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Kernel.framework; path = System/Library/Frameworks/Kernel.framework; sourceTree = SDKROOT; };
@@ -80,10 +81,10 @@
 		D37BD68416C605F500C255A2 /* RealtekRTL8111 */ = {
 			isa = PBXGroup;
 			children = (
+				63EE092E1939D46600A80EF9 /* RealtekRTL8111Linux-803800.cpp */,
+				63EE092F1939D46600A80EF9 /* RealtekRTL8111Linux-803800.h */,
 				D37BD69616C6065300C255A2 /* RealtekRTL8111.h */,
 				D37BD69716C6065300C255A2 /* RealtekRTL8111.cpp */,
-				D33D08ED1890815C00B48E37 /* RealtekRTL8111Linux-803700.h */,
-				D33D08EE1890817100B48E37 /* RealtekRTL8111Linux-803700.cpp */,
 				D37BD69B16C6068D00C255A2 /* linux.h */,
 				D37BD69C16C6068D00C255A2 /* mii.h */,
 				D37BD69D16C6068D00C255A2 /* if_ether.h */,
@@ -115,6 +116,7 @@
 				D37BD6A016C6068D00C255A2 /* mii.h in Headers */,
 				D37BD6A116C6068D00C255A2 /* if_ether.h in Headers */,
 				D37BD6A216C6068D00C255A2 /* ethertool.h in Headers */,
+				63EE09321939D46600A80EF9 /* RealtekRTL8111Linux-803800.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -146,7 +148,7 @@
 		D37BD67416C605F500C255A2 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0440;
+				LastUpgradeCheck = 0510;
 				ORGANIZATIONNAME = "Laura Müller";
 			};
 			buildConfigurationList = D37BD67716C605F500C255A2 /* Build configuration list for PBXProject "RealtekRTL8111" */;
@@ -192,8 +194,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				63EE09311939D46600A80EF9 /* RealtekRTL8111Linux-803800.cpp in Sources */,
 				D37BD69916C6065300C255A2 /* RealtekRTL8111.cpp in Sources */,
-				D33D08EF1890817100B48E37 /* RealtekRTL8111Linux-803700.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -215,7 +217,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
@@ -242,7 +243,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = YES;
